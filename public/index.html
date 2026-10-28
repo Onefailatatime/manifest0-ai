@@ -67,9 +67,8 @@ input::placeholder{color:var(--m0-text-muted)}
 .th img{width:100%;height:100%;object-fit:cover;display:block}
 .th button{position:absolute;top:4px;right:4px;width:30px;height:30px;border-radius:50%;border:2px solid #fff;background:rgba(0,0,0,.7);color:#fff;font-size:16px;display:grid;place-items:center;padding:0}
 .tray .go{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;font-size:var(--m0-fs-sm)}
-.tray .go>span{display:flex;flex-direction:column;align-items:flex-start;min-width:0}
 .tray .go .btn{white-space:nowrap}
-.clear{background:none;border:0;padding:4px 0;color:var(--m0-error);font-size:var(--m0-fs-sm);font-weight:500}
+.clear{background:none;border:0;padding:0;min-height:var(--m0-tap);color:var(--m0-text-2);font-size:var(--m0-fs-sm)}
 .btn{min-height:var(--m0-tap);border-radius:var(--m0-radius-md);font-weight:600;font-size:var(--m0-fs-sm);display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 14px;border:1px solid var(--m0-border-strong);background:var(--m0-surface);color:var(--m0-text);text-decoration:none}
 .btn.dark{background:var(--m0-primary);color:var(--m0-on-primary);border-color:transparent}
 .btn.danger{background:var(--m0-error-bg);color:var(--m0-error);border-color:transparent}
@@ -241,7 +240,7 @@ body.out #app,body.out .sticky{display:none}
         <button class="snap" id="snapBtn"><span class="dot"><i class="ti ti-camera"></i></span><span><b>Snap a label</b><span>One photo per label. For a packed box, the box and one item.</span></span></button>
         <div class="tray" id="tray" hidden>
           <div class="thumbs" id="thumbs"></div>
-          <div class="go"><span><span id="trayText"></span><button class="clear" id="clearTray">Clear all</button></span><button class="btn dark" id="readBtn"><i class="ti ti-send"></i> Read photos</button></div>
+          <div class="go"><button class="clear" id="clearTray">Clear all</button><button class="btn dark" id="readBtn"><i class="ti ti-send"></i> <span id="readText">Read photos</span></button></div>
         </div>
       </div>
       <!-- No "capture" attribute: the phone asks Take Photo or Photo Library. -->
@@ -369,7 +368,7 @@ function addPhotos(list){let big=0,over=0;
  else if(big)toast(`${plural(big,'photo')} skipped: over ${MAX_MB} MB.`)}
 function renderTray(){$('#tray').hidden=!tray.length;
  $('#thumbs').innerHTML=tray.map(t=>`<div class="th"><img src="${t.url}" alt=""><button data-id="${t.id}" aria-label="Remove photo"><i class="ti ti-x"></i></button></div>`).join('');
- $("#trayText").textContent=`${tray.length}/${MAX_PHOTOS} photos · ${room}`}
+ $("#readText").textContent=`Read ${plural(tray.length,"photo")}`}
 $('#clearTray').onclick=()=>{const old=tray;tray=[];renderTray();
  toast(plural(old.length,'photo')+' cleared','Undo',()=>{tray=old.concat(tray);renderTray()})};
 $('#thumbs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const t=tray.find(x=>x.id===+b.dataset.id);
