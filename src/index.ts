@@ -35,6 +35,9 @@ export default {
       if (!obj) return new Response("Not found", { status: 404 });
       const headers = new Headers();
       obj.writeHttpMetadata(headers);
+      // Open in the browser by default; ?download=1 (the Download button) saves it, named by ?name=.
+      const name = (url.searchParams.get("name") ?? pathname.split("/").pop() ?? "file").replace(/[^\w\s.&()-]/g, "");
+      headers.set("Content-Disposition", `${url.searchParams.has("download") ? "attachment" : "inline"}; filename="${name}"`);
       return new Response(obj.body, { headers });
     }
 

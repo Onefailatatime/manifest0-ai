@@ -194,6 +194,11 @@ body.out #app,body.out .sticky{display:none}
 .ghs{width:46px;height:46px;padding:0;border:0;background:none}
 .ghs img{width:100%;height:100%;display:block}
 
+.pdf{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.pdf canvas{display:block;border:1px solid var(--m0-line);border-radius:6px;background:#fff}
+.pdf .status{padding:40px 0;text-align:center;color:var(--m0-text-2);font-size:var(--m0-fs-sm)}
+.pdf a{color:var(--m0-accent)}
+
 /* room dropdown */
 .top{position:relative}
 .link i{font-size:14px;vertical-align:-2px}
@@ -318,7 +323,7 @@ $('#markBtn').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
 
 /* ---------- bottom sheet ---------- */
 let lastFocus=null,sheetFor=null,sheetGen=0;
-function openSheet(title,html,forId,mode){hideT();$('#sheet').className='sheet '+(mode||'dialog')+($('#sheet').classList.contains('show')?' show':'');$('#sheetClose').innerHTML=`<i class="ti ti-${mode==='full'?'arrow-left':'x'}"></i>`;$('#sheetClose').setAttribute('aria-label',mode==='full'?'Back':'Close');if($('#sheet').hidden)lastFocus=document.activeElement;sheetFor=forId||null;sheetGen++;
+function openSheet(title,html,forId,mode){hideT();$('#sheet').className='sheet '+(mode||'dialog')+($('#sheet').classList.contains('show')?' show':'');$('#sheetClose').innerHTML=`<i class="ti ti-${mode==='full'?'arrow-left':'x'}"></i>`;$('#sheetClose').setAttribute('aria-label',mode==='full'?'Back':'Close');$('#sheetClose').onclick=closeSheet;if($('#sheet').hidden)lastFocus=document.activeElement;sheetFor=forId||null;sheetGen++;
  $('#sheetTitle').textContent=title;$('#sheetBody').innerHTML=html;
  const sc=$('#scrim'),sh=$('#sheet');sc.hidden=false;sh.hidden=false;document.body.classList.add('lock');
  requestAnimationFrame(()=>{sc.classList.add('show');sh.classList.add('show')})}
@@ -564,9 +569,10 @@ function detail(id){
   </div>`:`<dl style="margin-top:-8px"><dt>Containers</dt><dd>${esc(summary(p))}</dd>
    <dt>EPA manifest</dt><dd>${m.code?esc(p.quantity+' '+m.code):'<small>'+esc(m.hint)+'</small>'}</dd></dl>`}
   <div class="stack">
-   ${sdsLink?`<a class="btn wide" href="${esc(sdsLink)}" target="_blank" rel="noopener"><i class="ti ti-file-text"></i> ${p.sds_key?'View SDS':'Open SDS page'}</a>`:''}
+   ${p.sds_key?`<button class="btn wide" id="dSds"><i class="ti ti-file-text"></i> View SDS</button>`:sdsLink?`<a class="btn wide" href="${esc(sdsLink)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Open SDS page</a>`:''}
    ${open?`<div class="grid2"><button class="btn danger" id="dRm"><i class="ti ti-trash"></i> Delete</button><button class="btn ok" id="dOk"><i class="ti ti-check"></i> ${p.confirmed?'Unconfirm':'Confirm'}</button></div>`:''}
   </div>`,id,'full');
+ if($('#dSds'))$('#dSds').onclick=()=>viewSds(p);
  if(!open)return;
  // dropdowns save on pick; steppers save half a second after the last tap
  document.querySelectorAll('#sheetBody .sel-wrap').forEach(w=>{const pop=w.querySelector('.sel-pop');
@@ -580,6 +586,24 @@ function detail(id){
   inp.parentElement.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{inp.value=Math.max(min,(parseInt(inp.value)||0)+ +b.dataset.d);save(key,inp,min)})});
  $('#dRm').onclick=()=>confirmDelete(p);
  $('#dOk').onclick=async()=>{const c=!p.confirmed;closeSheet();await patch(id,{confirmed:c},c?'Confirmed':'Marked as needs review')}}
+/* ---------- SDS viewer: shows the PDF inside the app (PDF.js), with a Download button ---------- */
+const PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+let pdfjsReady;
+const loadPdfjs=()=>pdfjsReady||=new Promise((ok,fail)=>{const sc=document.createElement('script');sc.src=PDFJS+'pdf.min.js';
+ sc.onload=()=>{pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS+'pdf.worker.min.js';ok(pdfjsLib)};sc.onerror=fail;document.head.appendChild(sc)});
+async function viewSds(p){
+ const url=`/api/files/${p.sds_key}`,name=`SDS - ${p.product_name}.pdf`;
+ openSheet('SDS · '+p.product_name,`<a class="btn dark wide" href="${url}?download=1&name=${encodeURIComponent(name)}" download="${esc(name)}"><i class="ti ti-download"></i> Download PDF</a>
+  <div class="pdf" id="pdfPages"><div class="status"><i class="ti ti-loader-2 spin"></i> Opening the SDS…</div></div>`,null,'full');
+ $('#sheetClose').onclick=()=>detail(p.id);
+ try{const lib=await loadPdfjs(),doc=await lib.getDocument(url).promise,box=$('#pdfPages');if(!box)return;box.innerHTML='';
+  const w=box.clientWidth,dpr=Math.min(2,window.devicePixelRatio||1);
+  for(let i=1;i<=doc.numPages;i++){if(!$('#pdfPages'))return;   // viewer was closed
+   const page=await doc.getPage(i),v=page.getViewport({scale:1}),vp=page.getViewport({scale:w/v.width*dpr});
+   const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;c.style.width=w+'px';box.appendChild(c);
+   await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise}}
+ catch(e){const box=$('#pdfPages');if(box)box.innerHTML=`<div class="status">Couldn't show the SDS here. <a href="${url}" target="_blank" rel="noopener">Open it in a new tab</a>.</div>`}}
+
 /* Deleting a product always asks first. */
 function confirmDelete(p){
  openSheet('Delete this item?',`<p style="font-size:15px"><b>${esc(p.product_name)}</b> (${esc(summary(p))}) will be taken off the inventory and left out of the report.</p>
