@@ -183,33 +183,24 @@ dd small{display:block;font-weight:400;color:var(--m0-text-2)}
 .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translate(-50%,20px);z-index:60;background:var(--m0-text);color:var(--m0-bg);padding:10px 14px;border-radius:var(--m0-radius-md);font-size:var(--m0-fs-sm);font-weight:500;opacity:0;pointer-events:none;transition:all .2s;max-width:calc(100% - 32px);display:flex;align-items:center;gap:12px}
 body.lock .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
 .toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
-/* sign-in: full screen in the header color, form card at the bottom */
-.signin{min-height:100vh;min-height:100dvh;max-width:var(--m0-content-max);margin:0 auto;background:var(--m0-header);color:var(--m0-on-header);display:flex;flex-direction:column}
+/* sign-in: all navy, hazard tape across the top, everything in one column */
+.signin{min-height:100vh;min-height:100dvh;background:var(--m0-header);color:var(--m0-on-header);display:flex;flex-direction:column}
 body.out{background:var(--m0-header)}
 body.out #app,body.out .sticky{display:none}
-.brand{flex:1;display:flex;flex-direction:column;justify-content:center;padding:calc(32px + env(safe-area-inset-top)) 28px 32px}
-.badge-mark{width:64px;height:64px;display:block}
-.big-mark{font-size:2rem;font-weight:700;letter-spacing:-.02em;margin-top:20px}
-.big-mark b{color:var(--m0-hazard);font-weight:700}
-.brand p{font-size:var(--m0-fs-body);opacity:.8;margin-top:10px;max-width:30ch}
-.signin-card{background:var(--m0-bg);color:var(--m0-text);border-radius:24px 24px 0 0;padding:24px 20px calc(24px + env(safe-area-inset-bottom))}
-[data-theme=dark] .signin-card{background:var(--m0-surface)}
-[data-theme=dark] .signin-card .field{background:var(--m0-surface-2)}
-.signin-card h2{font-size:var(--m0-fs-h2);font-weight:600}
-.signin-card .lbl{margin-top:14px}
-.go-btn{width:100%;min-height:var(--m0-btn-h);margin-top:16px;border:0;border-radius:var(--m0-radius-md);background:var(--m0-hazard);color:var(--m0-on-hazard);font-size:1.0625rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
-.demo-note{text-align:center;font-size:var(--m0-fs-xs);color:var(--m0-text-2);margin-top:12px}
-@media (min-width:600px){.signin{min-height:auto;margin-top:6vh;border-radius:24px;overflow:hidden}.brand{padding:48px 32px 40px}.signin-card{border-radius:24px 24px 0 0}}
-
-/* GHS diamond: white square turned 45°, red border, black symbol */
-.ghs-row{display:flex;flex-wrap:wrap;gap:8px;padding:2px 0}
-.ghs{width:46px;height:46px;padding:0;border:0;background:none}
-.ghs img{width:100%;height:100%;display:block}
-
-.pdf{margin-top:12px;display:flex;flex-direction:column;gap:10px}
-.pdf canvas{display:block;border:1px solid var(--m0-line);border-radius:6px;background:#fff}
-.pdf .status{padding:40px 0;text-align:center;color:var(--m0-text-2);font-size:var(--m0-fs-sm)}
-.pdf a{color:var(--m0-accent)}
+.stripe{height:14px;flex:0 0 auto;background:repeating-linear-gradient(-45deg,var(--m0-hazard) 0 14px,var(--m0-header) 14px 28px);margin-top:env(safe-area-inset-top)}
+.signin-in{flex:1;width:100%;max-width:var(--m0-content-max);margin:0 auto;display:flex;flex-direction:column;justify-content:flex-end;padding:32px 24px calc(28px + env(safe-area-inset-bottom))}
+.brand{margin-bottom:28px}
+.badge-mark{width:60px;height:60px;display:block}
+.brand h1{font-size:2rem;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin-top:22px}
+.brand p{font-size:1.0625rem;opacity:.75;margin-top:10px}
+.signin .field{margin:0;height:52px;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:var(--m0-on-header)}
+.signin .field::placeholder{color:rgba(255,255,255,.55)}
+.signin .field:focus{outline:none;border-color:var(--m0-hazard)}
+.signin .field[aria-invalid=true]{border-color:#FCA5A5}
+.signin .err{color:#FCA5A5}
+.go-btn{width:100%;min-height:var(--m0-btn-h);margin-top:12px;border:0;border-radius:var(--m0-radius-md);background:var(--m0-hazard);color:var(--m0-on-hazard);font-size:1.0625rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+.demo-note{text-align:center;font-size:var(--m0-fs-xs);opacity:.55;margin-top:14px}
+@media (min-width:600px){.signin-in{justify-content:center}}
 
 /* room dropdown */
 .menu{position:absolute;right:var(--m0-gutter);left:var(--m0-gutter);top:calc(100% + 4px);z-index:30;background:var(--m0-bg);color:var(--m0-text);border:1px solid var(--m0-line);border-radius:var(--m0-radius-lg);box-shadow:var(--m0-shadow-2);padding:6px;max-height:60vh;overflow:auto}
@@ -250,15 +241,15 @@ body.out #app,body.out .sticky{display:none}
 <body>
 <!-- demo sign-in: only remembers the email on this phone. Real sign-in comes later. -->
 <section class="signin" id="signin" hidden>
-  <div class="brand">
-    <img class="badge-mark" src="logo-yellow.svg" alt="">
-    <div class="big-mark">Manifest0 <b>AI</b></div>
-    <p>Walk the site, snap the labels. Get the waste inventory and every SDS, sent to your client.</p>
-  </div>
-  <form class="signin-card" id="signinForm" novalidate>
-    <h2>Sign in</h2>
-    <label class="lbl" for="me">Work email</label>
-    <input id="me" class="field" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com">
+  <div class="stripe" aria-hidden="true"></div>
+  <form class="signin-in" id="signinForm" novalidate>
+    <div class="brand">
+      <img class="badge-mark" src="logo-yellow.svg" alt="">
+      <h1>Welcome to Manifest0 AI</h1>
+      <p>Zero guesswork on hazardous waste.</p>
+    </div>
+    <label class="sr" for="me">Work email</label>
+    <input id="me" class="field" type="email" inputmode="email" autocomplete="email" placeholder="Work email">
     <div class="err" id="signinErr" role="alert" hidden></div>
     <button class="go-btn" type="submit">Continue <i class="ti ti-arrow-right"></i></button>
     <div class="demo-note">Demo version: no password needed yet.</div>
