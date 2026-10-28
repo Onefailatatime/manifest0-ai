@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#FFFFFF">
 <title>Manifest0 AI</title>
+<link rel="icon" href="logo-navy.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
@@ -37,7 +39,11 @@ button{cursor:pointer}
 .top{position:relative;background:var(--m0-bg);color:var(--m0-text);padding:calc(10px + env(safe-area-inset-top)) var(--m0-gutter) 2px}
 .bar{display:flex;align-items:center;justify-content:space-between;min-height:var(--m0-tap)}
 .mark{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;letter-spacing:-.01em;background:none;border:0;padding:0;color:inherit}
-.logo{width:26px;height:26px;border-radius:8px;background:var(--m0-hazard);color:var(--m0-on-hazard);display:grid;place-items:center;font-size:15px}
+.logo{width:28px;height:28px;display:block}
+.logo img{width:100%;height:100%;display:block}
+.on-dark{display:none!important}
+[data-theme=dark] .on-dark{display:block!important}
+[data-theme=dark] .on-light{display:none!important}
 .avatar-btn{width:34px;height:34px;border-radius:50%;border:0;background:var(--m0-primary);color:var(--m0-on-primary);font-weight:600;font-size:14px;display:grid;place-items:center}
 [data-theme=dark] .avatar-btn{background:var(--m0-hazard);color:var(--m0-on-hazard)}
 .ctx{padding-top:14px}
@@ -182,7 +188,7 @@ body.lock .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
 body.out{background:var(--m0-header)}
 body.out #app,body.out .sticky{display:none}
 .brand{flex:1;display:flex;flex-direction:column;justify-content:center;padding:calc(32px + env(safe-area-inset-top)) 28px 32px}
-.badge-mark{width:56px;height:56px;border-radius:16px;background:var(--m0-hazard);color:var(--m0-on-hazard);display:grid;place-items:center;font-size:30px}
+.badge-mark{width:64px;height:64px;display:block}
 .big-mark{font-size:2rem;font-weight:700;letter-spacing:-.02em;margin-top:20px}
 .big-mark b{color:var(--m0-hazard);font-weight:700}
 .brand p{font-size:var(--m0-fs-body);opacity:.8;margin-top:10px;max-width:30ch}
@@ -234,7 +240,7 @@ body.out #app,body.out .sticky{display:none}
 <!-- demo sign-in: only remembers the email on this phone. Real sign-in comes later. -->
 <section class="signin" id="signin" hidden>
   <div class="brand">
-    <div class="badge-mark"><i class="ti ti-flask"></i></div>
+    <img class="badge-mark" src="logo-yellow.svg" alt="">
     <div class="big-mark">Manifest0 <b>AI</b></div>
     <p>Walk the site, snap the labels. Get the waste inventory and every SDS, sent to your client.</p>
   </div>
@@ -251,7 +257,7 @@ body.out #app,body.out .sticky{display:none}
 <div class="wrap" id="app">
   <header class="top">
     <div class="bar">
-      <button class="mark" id="markBtn"><span class="logo"><i class="ti ti-flask"></i></span>Manifest0 AI</button>
+      <button class="mark" id="markBtn"><span class="logo"><img class="on-light" src="logo-navy.svg" alt=""><img class="on-dark" src="logo-yellow.svg" alt=""></span>Manifest0 AI</button>
       <button class="avatar-btn" id="accountBtn" aria-label="Account and settings"><i class="ti ti-user"></i></button>
     </div>
     <div class="ctx">
