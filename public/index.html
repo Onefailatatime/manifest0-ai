@@ -245,8 +245,15 @@ body.out #app,body.out .sticky{display:none}
 .rv-files li:last-child{border-bottom:0}
 .rv-files i{font-size:18px;color:var(--m0-text-2);flex:0 0 auto}
 .rv-files span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rv-report{width:100%;min-height:200px;border:1px solid var(--m0-line);border-radius:12px;background:#fff;display:block}
+.rv-files li.open{cursor:pointer}
+.rv-files li.open:active{background:var(--m0-surface-2)}
+.rv-files .rep{color:var(--m0-error)}
+.rv-files .go{margin-left:auto;font-size:16px}
 .rv-send{min-height:var(--m0-btn-h);font-size:1.0625rem}
+
+.sent-line{margin-top:6px;font-size:var(--m0-fs-sm);color:var(--m0-text-2)}
+.lnk{background:none;border:0;padding:0;color:var(--m0-accent);font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
+[data-theme=dark] .lnk{color:var(--m0-hazard)}
 
 /* room dropdown */
 .menu{position:absolute;right:var(--m0-gutter);left:var(--m0-gutter);top:calc(100% + 4px);z-index:30;background:var(--m0-bg);color:var(--m0-text);border:1px solid var(--m0-line);border-radius:var(--m0-radius-lg);box-shadow:var(--m0-shadow-2);padding:6px;max-height:60vh;overflow:auto}
@@ -567,11 +574,15 @@ async function patch(id,body,msg){
  catch(e){toast(e.message);return false}}
 
 /* ---------- send report ---------- */
-/* Send to client: a review page with the email draft (editable), the attachments and the report itself. Nothing goes out until Send. */
+/* Send to client: a review page with the email draft (editable) and the attachments, which open to look at.
+   Nothing goes out until Send. Edits to the subject and message survive opening an attachment. */
+let review=null;
 async function sendReport(){
  openSheet('Review and send','<div class="pdf"><div class="status"><i class="ti ti-loader-2 spin"></i> Preparing the report…</div></div>',null,'full');
- let r;try{r=await api(`/api/visits/${visitId}/report`)}catch(e){toast(e.message);closeSheet();return}
- const ic={spreadsheet:'file-spreadsheet',sds:'file-type-pdf'};
+ try{review=await api(`/api/visits/${visitId}/report`)}catch(e){toast(e.message);closeSheet();return}
+ showReview()}
+function showReview(){
+ const r=review,ic={report:'file-type-pdf',spreadsheet:'file-spreadsheet',sds:'file-type-pdf'};
  openSheet('Review and send',`
   <div class="rv-sec">Email</div>
   <div class="rv-to"><span>To</span><b>${esc(r.to.join(', ')||r.cc)}</b></div>
@@ -580,18 +591,17 @@ async function sendReport(){
   <input id="rvSubject" class="field" type="text" value="${esc(r.subject)}">
   <label class="rv-lbl" for="rvMsg">Message</label>
   <textarea id="rvMsg" class="field rv-msg" rows="7">${esc(r.message)}</textarea>
-  <div class="rv-sec">Attachments <small>${r.attachments.length}</small></div>
-  <ul class="rv-files">${r.attachments.map(f=>`<li><i class="ti ti-${ic[f.kind]}"></i><span>${esc(f.name)}</span></li>`).join('')}</ul>
+  <div class="rv-sec">Attachments <small>tap a PDF to view it</small></div>
+  <ul class="rv-files">${r.attachments.map((f,i)=>`<li${f.url?` class="open" data-att="${i}"`:''}><i class="ti ti-${ic[f.kind]}${f.kind==='report'?' rep':''}"></i><span>${esc(f.name)}</span>${f.url?'<i class="ti ti-chevron-right go"></i>':''}</li>`).join('')}</ul>
   ${r.missingSds.length?`<div class="banner warn"><i class="ti ti-alert-triangle"></i> No SDS found for ${esc(r.missingSds.join(', '))}. The report says so.</div>`:''}
   ${busy()?'<div class="banner warn">Manifest0 AI is still working. The email goes out as soon as it finishes.</div>':''}
-  <div class="rv-sec">Report <small>in the email, below your message</small></div>
-  <iframe class="rv-report" id="rvReport" title="Report preview" sandbox="allow-same-origin"></iframe>
-  <div class="ctr-note" style="margin:10px 0 16px">After sending, the inventory can't be changed.</div>
+  <div class="ctr-note" style="margin:14px 0 16px">After sending, the inventory can't be changed.</div>
   <button class="btn dark wide rv-send" id="rvSend"><i class="ti ti-send"></i> Send to client</button>`,null,'full');
- const f=$('#rvReport');f.srcdoc=`<!doctype html><meta name="viewport" content="width=device-width"><body style="margin:0;padding:12px;background:#fff;color:#111">${r.reportHtml}</body>`;
- f.onload=()=>{try{f.style.height=f.contentDocument.documentElement.scrollHeight+'px'}catch(e){}};
- $('#rvSend').onclick=async()=>{$('#rvSend').disabled=true;
-  try{await api(`/api/visits/${visitId}/finish`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:$('#rvSubject').value,message:$('#rvMsg').value})});
+ const keep=()=>{r.subject=$('#rvSubject').value;r.message=$('#rvMsg').value};
+ document.querySelectorAll('[data-att]').forEach(li=>li.onclick=()=>{keep();const f=r.attachments[+li.dataset.att];
+  viewPdf({url:f.url,title:f.kind==='report'?'Inventory report':f.name.replace(/\.pdf$/,''),name:f.name,back:showReview})});
+ $('#rvSend').onclick=async()=>{keep();$('#rvSend').disabled=true;
+  try{await api(`/api/visits/${visitId}/finish`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:r.subject,message:r.message})});
    closeSheet();toast('Report is on its way');await load()}
   catch(e){toast(e.message);$('#rvSend').disabled=false}}}
 
@@ -698,9 +708,9 @@ function render(){
  // result banner
  const saved=data&&data.log.map(l=>l.match(/Report: (\/api\/files\/\S+)/)).filter(Boolean).at(-1),bn=$('#banner');
  bn.hidden=true;
- if(v&&v.status==='done'){bn.hidden=false;bn.className='banner';const list=JSON.parse(v.recipients||'[]');
-  bn.innerHTML=v.email_sent_at?`<i class="ti ti-circle-check"></i> Report emailed to ${esc(list.join(', '))}.`
-   :saved?`Email isn't set up yet, so the report was saved: <a href="${esc(saved[1])}" target="_blank">open report</a>.`:'Report done.'}
+ if(v&&v.status==='done'){bn.hidden=false;bn.className='sent-line';const list=JSON.parse(v.recipients||'[]');
+  bn.innerHTML=`${v.email_sent_at?`Emailed to ${esc(list.slice(1).join(', ')||list[0])}`:'Saved (email not set up yet)'} · <button class="lnk" id="viewRep">View report</button>`;
+  $('#viewRep').onclick=()=>viewReport(closeSheet)}
  else if(v&&v.status==='failed'){bn.hidden=false;bn.className='banner bad';bn.textContent="The email didn't go out: "+v.error}
 
  // inventory
@@ -785,18 +795,21 @@ const PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 let pdfjsReady;
 const loadPdfjs=()=>pdfjsReady||=new Promise((ok,fail)=>{const sc=document.createElement('script');sc.src=PDFJS+'pdf.min.js';
  sc.onload=()=>{pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS+'pdf.worker.min.js';ok(pdfjsLib)};sc.onerror=fail;document.head.appendChild(sc)});
-async function viewSds(p){
- const url=`/api/files/${p.sds_key}`,name=`SDS - ${p.product_name}.pdf`;
- openSheet('SDS · '+p.product_name,`<a class="btn dark wide" href="${url}?download=1&name=${encodeURIComponent(name)}" download="${esc(name)}"><i class="ti ti-download"></i> Download PDF</a>
-  <div class="pdf" id="pdfPages"><div class="status"><i class="ti ti-loader-2 spin"></i> Opening the SDS…</div></div>`,null,'full');
- $('#sheetClose').onclick=()=>detail(p.id);
+/* Read-only PDF viewer (SDS sheets, the report). The back arrow returns to where you came from. */
+async function viewPdf({url,title,name,back}){
+ const dl=url+(url.includes('?')?'&':'?')+'download=1&name='+encodeURIComponent(name);
+ openSheet(title,`<a class="btn dark wide" href="${dl}" download="${esc(name)}"><i class="ti ti-download"></i> Download PDF</a>
+  <div class="pdf" id="pdfPages"><div class="status"><i class="ti ti-loader-2 spin"></i> Opening the PDF…</div></div>`,null,'full');
+ $('#sheetClose').onclick=back;
  try{const lib=await loadPdfjs(),doc=await lib.getDocument(url).promise,box=$('#pdfPages');if(!box)return;box.innerHTML='';
   const w=box.clientWidth,dpr=Math.min(2,window.devicePixelRatio||1);
   for(let i=1;i<=doc.numPages;i++){if(!$('#pdfPages'))return;   // viewer was closed
    const page=await doc.getPage(i),v=page.getViewport({scale:1}),vp=page.getViewport({scale:w/v.width*dpr});
    const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;c.style.width=w+'px';box.appendChild(c);
    await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise}}
- catch(e){const box=$('#pdfPages');if(box)box.innerHTML=`<div class="status">Couldn't show the SDS here. <a href="${url}" target="_blank" rel="noopener">Open it in a new tab</a>.</div>`}}
+ catch(e){const box=$('#pdfPages');if(box)box.innerHTML=`<div class="status">Couldn't show the PDF here. <a href="${url}" target="_blank" rel="noopener">Open it in a new tab</a>.</div>`}}
+const viewSds=p=>viewPdf({url:`/api/files/${p.sds_key}`,title:'SDS · '+p.product_name,name:`SDS - ${p.product_name}.pdf`,back:()=>detail(p.id)});
+const viewReport=(back)=>viewPdf({url:`/api/visits/${visitId}/report.pdf`,title:'Inventory report',name:`Inventory report - ${(data&&data.visit.site_name)||'site'}.pdf`,back});
 
 /* Deleting a product always asks first. */
 function confirmDelete(p){

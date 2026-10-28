@@ -2,6 +2,7 @@ import { Agent } from "agents";
 import { Buffer } from "node:buffer";
 import { manifestCode } from "./manifest";
 import { extractProducts, findSds, type KnownProduct } from "./muse";
+import { reportPdf } from "./report-pdf";
 
 // One VisitAgent per site visit, named by the visit id. It lives for the whole visit:
 // the technician adds photos room by room, and the agent remembers every product it has
@@ -216,12 +217,11 @@ export class VisitAgent extends Agent<Env, VisitState> {
       ).all<ProductRow>();
 
       // The inventory as a spreadsheet first, then each distinct SDS PDF until we hit the size limit (the rest are linked).
-      const csv = inventoryCsv(products);
-      const attachments: Attachment[] = [{
-        content: Buffer.from(csv).toString("base64"),
-        filename: `Inventory - ${safeFilename(visit.site_name ?? "site")}.csv`,
-        content_type: "text/csv",
-      }];
+      const site = safeFilename(visit.site_name ?? "site");
+      const attachments: Attachment[] = [
+        { content: Buffer.from(await reportPdf(visit, products)).toString("base64"), filename: `Inventory report - ${site}.pdf`, content_type: "application/pdf" },
+        { content: Buffer.from(inventoryCsv(products)).toString("base64"), filename: `Inventory - ${site}.csv`, content_type: "text/csv" },
+      ];
       const attachedKeys = new Set<string>();
       let total = 0;
       for (const p of products) {
@@ -242,7 +242,9 @@ export class VisitAgent extends Agent<Env, VisitState> {
       const draft = defaultEmail(visit, products);
       const subject = visit.email_subject || draft.subject;
       const message = visit.email_message ?? draft.message;
-      const html = messageHtml(message) + reportHtml(visit, products, attachedKeys, this.state.appUrl, visitUrl);
+      // The email is the technician's message; the report itself is the attached PDF.
+      const html = messageHtml(message) +
+        `<p style="font-family:system-ui,sans-serif;font-size:12px;color:#5a6372">Sent with Manifest0 AI · <a href="${esc(visitUrl)}">View the inventory online</a></p>`;
 
       if (!this.env.RESEND_API_KEY) {
         // No email provider configured (e.g. local dev): keep the report so it can be opened in the browser.

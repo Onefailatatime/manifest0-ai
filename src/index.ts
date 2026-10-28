@@ -1,7 +1,8 @@
 import { getAgentByName } from "agents";
 import { CONTAINER_MATERIALS, manifestCode, type ContainerMaterial } from "./manifest";
 import { CONTAINER_TYPES, type ContainerType } from "./muse";
-import { defaultEmail, reportHtml, type ProductRow, type VisitRow } from "./visit-agent";
+import { defaultEmail, type ProductRow, type VisitRow } from "./visit-agent";
+import { reportPdf } from "./report-pdf";
 
 // Durable Object classes must be exported from the entry file.
 export { VisitAgent } from "./visit-agent";
@@ -20,14 +21,15 @@ export default {
     if (method === "POST" && pathname === "/api/visits") return createVisit(request, env, url.origin);
     if (method === "GET" && pathname === "/api/visits") return listVisits(env, url.searchParams.get("email") ?? "");
 
-    const visit = pathname.match(/^\/api\/visits\/([\w-]+)(\/photos|\/finish|\/report)?$/);
+    const visit = pathname.match(/^\/api\/visits\/([\w-]+)(\/photos|\/finish|\/report|\/report\.pdf)?$/);
     if (visit) {
       const [, visitId, action] = visit;
       if (method === "GET" && !action) return getVisit(env, visitId);
       if (method === "DELETE" && !action) return deleteVisit(env, visitId, url.searchParams.get("email") ?? "");
       if (method === "POST" && action === "/photos") return addPhotos(request, env, visitId);
       if (method === "POST" && action === "/finish") return finishVisit(request, env, visitId);
-      if (method === "GET" && action === "/report") return reportPreview(env, visitId, url.origin);
+      if (method === "GET" && action === "/report") return reportPreview(env, visitId);
+      if (method === "GET" && action === "/report.pdf") return reportFile(env, visitId, url.searchParams.has("download"));
     }
 
     const product = pathname.match(/^\/api\/products\/([\w-]+)$/);
@@ -165,28 +167,47 @@ async function editProduct(request: Request, env: Env, productId: string) {
   return Response.json({ ok: true });
 }
 
-/** What the client will get: the email draft (editable), the report as it appears in the email, and the attachments. */
-async function reportPreview(env: Env, visitId: string, origin: string) {
-  const visit = await env.DB.prepare("SELECT * FROM visits WHERE id = ? AND deleted = 0").bind(visitId).first<VisitRow>();
-  if (!visit) return error("Not found", 404);
-  const { results: products } = await env.DB.prepare(
-    "SELECT * FROM products WHERE visit_id = ? AND removed = 0 ORDER BY room, product_name",
-  ).bind(visitId).all<ProductRow>();
-  const sdsKeys = new Set(products.map((p) => p.sds_key).filter((k): k is string => !!k));
+/** What the client will get: the email draft (editable) and the attachments, each of which can be opened to look at. */
+async function reportPreview(env: Env, visitId: string) {
+  const loaded = await loadReport(env, visitId);
+  if (!loaded) return error("Not found", 404);
+  const { visit, products } = loaded;
   const draft = defaultEmail(visit, products);
   const site = visit.site_name ?? "site";
+  const sds = new Map<string, string>();                 // one SDS per PDF, even if several rows share it
+  for (const p of products) if (p.sds_key && !sds.has(p.sds_key)) sds.set(p.sds_key, p.product_name);
   return Response.json({
     to: (JSON.parse(visit.recipients) as string[]).slice(1),
     cc: visit.user_email,
     subject: visit.email_subject || draft.subject,
     message: visit.email_message ?? draft.message,
-    reportHtml: reportHtml(visit, products, sdsKeys, origin, `${origin}/?visit=${visitId}`),
     attachments: [
+      { name: `Inventory report - ${site}.pdf`, kind: "report", url: `/api/visits/${visitId}/report.pdf` },
       { name: `Inventory - ${site}.csv`, kind: "spreadsheet" },
-      ...[...new Set(products.filter((p) => p.sds_key).map((p) => p.product_name))].map((n) => ({ name: `SDS - ${n}.pdf`, kind: "sds" })),
+      ...[...sds].map(([key, name]) => ({ name: `SDS - ${name}.pdf`, kind: "sds", url: `/api/files/${key}` })),
     ],
     missingSds: products.filter((p) => !p.sds_key).map((p) => p.product_name),
   });
+}
+
+/** The report PDF, exactly as it will be attached. */
+async function reportFile(env: Env, visitId: string, download: boolean) {
+  const loaded = await loadReport(env, visitId);
+  if (!loaded) return error("Not found", 404);
+  const name = `Inventory report - ${(loaded.visit.site_name ?? "site").replace(/[^\w\s.&()-]/g, "")}.pdf`;
+  const pdf = await reportPdf(loaded.visit, loaded.products);
+  return new Response(pdf.buffer as ArrayBuffer, {
+    headers: { "Content-Type": "application/pdf", "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${name}"`, "Cache-Control": "no-store" },
+  });
+}
+
+async function loadReport(env: Env, visitId: string) {
+  const visit = await env.DB.prepare("SELECT * FROM visits WHERE id = ? AND deleted = 0").bind(visitId).first<VisitRow>();
+  if (!visit) return null;
+  const { results: products } = await env.DB.prepare(
+    "SELECT * FROM products WHERE visit_id = ? AND removed = 0 ORDER BY room, product_name",
+  ).bind(visitId).all<ProductRow>();
+  return { visit, products };
 }
 
 /** Send the report, with the subject and message as the technician reviewed them. */
