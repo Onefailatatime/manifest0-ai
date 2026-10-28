@@ -351,11 +351,19 @@ document.addEventListener('click',e=>{if(!$('#roomMenu').hidden&&!e.target.close
 /* ---------- photos ---------- */
 $('#snapBtn').onclick=()=>$('#photoCam').click();
 $('#photoCam').addEventListener('change',e=>{addPhotos(e.target.files);e.target.value=''});
-function addPhotos(list){for(const f of list){if(!(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name)))continue;
- tray.push({id:++uid,file:f,url:URL.createObjectURL(f)})}renderTray()}
+/* Limits per batch: 20 photos, each up to 20 MB as taken (they're shrunk to ~1 MB before upload). */
+const MAX_PHOTOS=20,MAX_MB=20;
+function addPhotos(list){let big=0,over=0;
+ for(const f of list){if(!(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name)))continue;
+  if(f.size>MAX_MB*1048576){big++;continue}
+  if(tray.length>=MAX_PHOTOS){over++;continue}
+  tray.push({id:++uid,file:f,url:URL.createObjectURL(f)})}
+ renderTray();
+ if(over)toast(`Up to ${MAX_PHOTOS} photos at a time. Read these first, then add the rest.`);
+ else if(big)toast(`${plural(big,'photo')} skipped: over ${MAX_MB} MB.`)}
 function renderTray(){$('#tray').hidden=!tray.length;
  $('#thumbs').innerHTML=tray.map(t=>`<div class="th"><img src="${t.url}" alt=""><button data-id="${t.id}" aria-label="Remove photo"><i class="ti ti-x"></i></button></div>`).join('');
- $('#trayText').textContent=plural(tray.length,'photo')+' in '+room}
+ $("#trayText").textContent=`${tray.length}/${MAX_PHOTOS} photos · ${room}`}
 $('#thumbs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const t=tray.find(x=>x.id===+b.dataset.id);
  tray=tray.filter(x=>x!==t);URL.revokeObjectURL(t.url);renderTray()});
 
