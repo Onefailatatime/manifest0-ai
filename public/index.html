@@ -63,10 +63,13 @@ input::placeholder{color:var(--m0-text-muted)}
 /* photos picked, not yet sent */
 .tray{margin-top:8px;padding:10px;border:1px solid var(--m0-line);border-radius:var(--m0-radius-lg)}
 .thumbs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
-.th{position:relative;flex:0 0 56px;height:56px;border-radius:8px;overflow:hidden;background:var(--m0-surface-2)}
+.th{position:relative;flex:0 0 72px;height:72px;border-radius:8px;overflow:hidden;background:var(--m0-surface-2)}
 .th img{width:100%;height:100%;object-fit:cover;display:block}
-.th button{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:13px;display:grid;place-items:center;padding:0}
+.th button{position:absolute;top:4px;right:4px;width:30px;height:30px;border-radius:50%;border:2px solid #fff;background:rgba(0,0,0,.7);color:#fff;font-size:16px;display:grid;place-items:center;padding:0}
 .tray .go{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;font-size:var(--m0-fs-sm)}
+.tray .go>span{display:flex;flex-direction:column;align-items:flex-start;min-width:0}
+.tray .go .btn{white-space:nowrap}
+.clear{background:none;border:0;padding:4px 0;color:var(--m0-error);font-size:var(--m0-fs-sm);font-weight:500}
 .btn{min-height:var(--m0-tap);border-radius:var(--m0-radius-md);font-weight:600;font-size:var(--m0-fs-sm);display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 14px;border:1px solid var(--m0-border-strong);background:var(--m0-surface);color:var(--m0-text);text-decoration:none}
 .btn.dark{background:var(--m0-primary);color:var(--m0-on-primary);border-color:transparent}
 .btn.danger{background:var(--m0-error-bg);color:var(--m0-error);border-color:transparent}
@@ -86,8 +89,11 @@ input::placeholder{color:var(--m0-text-muted)}
 /* inventory list */
 .count{font-size:var(--m0-fs-xs);color:var(--m0-text-2);margin:20px 0 2px;display:flex;justify-content:space-between}
 .room{font-size:var(--m0-fs-xs);font-weight:600;color:var(--m0-text-2);margin:14px 0 0}
-.row{display:flex;align-items:center;gap:12px;width:100%;padding:11px 0;border:0;border-bottom:1px solid var(--m0-line);background:none;text-align:left}
-.row:last-child{border-bottom:0}
+.item{display:flex;align-items:center;border-bottom:1px solid var(--m0-line)}
+.item:last-child{border-bottom:0}
+.row{display:flex;align-items:center;gap:12px;flex:1;min-width:0;padding:11px 0;border:0;background:none;text-align:left}
+.del{flex:0 0 var(--m0-tap);height:var(--m0-tap);margin-right:-10px;border:0;background:none;color:var(--m0-text-2);font-size:20px;display:grid;place-items:center;border-radius:999px}
+.del:active{color:var(--m0-error);background:var(--m0-error-bg)}
 .ic{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;flex:0 0 36px;font-size:19px;background:var(--m0-info-bg);color:var(--m0-info)}
 .ic.num{font-weight:600;font-size:var(--m0-fs-sm);font-family:var(--m0-font-mono)}
 .ic.hot{background:var(--m0-hot-bg);color:var(--m0-hot)}
@@ -235,7 +241,7 @@ body.out #app,body.out .sticky{display:none}
         <button class="snap" id="snapBtn"><span class="dot"><i class="ti ti-camera"></i></span><span><b>Snap a label</b><span>One photo per label. For a packed box, the box and one item.</span></span></button>
         <div class="tray" id="tray" hidden>
           <div class="thumbs" id="thumbs"></div>
-          <div class="go"><span id="trayText"></span><button class="btn dark" id="readBtn"><i class="ti ti-send"></i> Read photos</button></div>
+          <div class="go"><span><span id="trayText"></span><button class="clear" id="clearTray">Clear all</button></span><button class="btn dark" id="readBtn"><i class="ti ti-send"></i> Read photos</button></div>
         </div>
       </div>
       <!-- No "capture" attribute: the phone asks Take Photo or Photo Library. -->
@@ -364,6 +370,8 @@ function addPhotos(list){let big=0,over=0;
 function renderTray(){$('#tray').hidden=!tray.length;
  $('#thumbs').innerHTML=tray.map(t=>`<div class="th"><img src="${t.url}" alt=""><button data-id="${t.id}" aria-label="Remove photo"><i class="ti ti-x"></i></button></div>`).join('');
  $("#trayText").textContent=`${tray.length}/${MAX_PHOTOS} photos · ${room}`}
+$('#clearTray').onclick=()=>{const old=tray;tray=[];renderTray();
+ toast(plural(old.length,'photo')+' cleared','Undo',()=>{tray=old.concat(tray);renderTray()})};
 $('#thumbs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const t=tray.find(x=>x.id===+b.dataset.id);
  tray=tray.filter(x=>x!==t);URL.revokeObjectURL(t.url);renderTray()});
 
@@ -445,9 +453,10 @@ function render(){
  const snap=JSON.stringify(products)+open;
  if(walking&&snap!==lastRows){lastRows=snap;let html='',r=null;const rooms=new Set(products.map(p=>p.room)).size;
   products.forEach((p,i)=>{if(rooms>1&&p.room!==r){r=p.room;html+=`<div class="room">${esc(r)}</div>`}
-   html+=`<button class="row" data-id="${p.id}"><span class="ic num${hot(p)?' hot':''}">${i+1}</span>
+   html+=`<div class="item"><button class="row" data-id="${p.id}"><span class="ic num${hot(p)?' hot':''}">${i+1}</span>
     <span class="t"><b>${esc(p.product_name)}</b><span>${esc(summary(p))}</span></span>
-    <span class="chips">${p.confirmed?'<i class="ti ti-circle-check ok-mark" aria-label="Confirmed"></i>':''}${classChip(p)}${sdsChip(p)}</span></button>`});
+    <span class="chips">${p.confirmed?'<i class="ti ti-circle-check ok-mark" aria-label="Confirmed"></i>':''}${classChip(p)}${sdsChip(p)}</span></button>
+    ${open?`<button class="del" data-del="${p.id}" aria-label="Delete ${esc(p.product_name)}"><i class="ti ti-trash"></i></button>`:''}</div>`});
   $('#rows').innerHTML=html||(open?'<div class="empty">Snap the first label to start the list.</div>':'')}
  update()}
 
@@ -461,7 +470,11 @@ function update(){const b=$('#mainBtn');
 $('#mainBtn').onclick=()=>{if(mode==='signin')signIn();else if(mode==='start')startWalk();else if(mode==='send')data&&data.products.length?sendReport():toast('Snap a label first');else newWalk()};
 
 /* ---------- product sheet ---------- */
-$('#rows').addEventListener('click',e=>{const b=e.target.closest('.row');if(b)detail(b.dataset.id)});
+$('#rows').addEventListener('click',e=>{
+ const d=e.target.closest('[data-del]');
+ if(d){const p=data.products.find(x=>x.id===d.dataset.del);
+  patch(p.id,{removed:true}).then(ok=>ok&&toast('Deleted '+p.product_name,'Undo',()=>patch(p.id,{removed:false},'Restored')));return}
+ const b=e.target.closest('.row');if(b)detail(b.dataset.id)});
 function detail(id){
  const p=data.products.find(x=>x.id===id);if(!p)return;const open=isOpen();
  const ing=JSON.parse(p.ingredients),haz=JSON.parse(p.hazard_statements),photos=JSON.parse(p.photo_keys);
@@ -492,13 +505,13 @@ function detail(id){
    <dt>EPA manifest</dt><dd>${m.code?esc(p.quantity+' '+m.code):'<small>'+esc(m.hint)+'</small>'}</dd></dl>`}
   <div class="stack">
    ${sdsLink?`<a class="btn wide" href="${esc(sdsLink)}" target="_blank" rel="noopener"><i class="ti ti-file-text"></i> ${p.sds_key?'View SDS':'Open SDS page'}</a>`:''}
-   ${open?`<div class="grid2"><button class="btn danger" id="dRm"><i class="ti ti-trash"></i> Remove</button><button class="btn ok" id="dOk"><i class="ti ti-check"></i> ${p.confirmed?'Unconfirm':'Confirm'}</button></div>`:''}
+   ${open?`<div class="grid2"><button class="btn danger" id="dRm"><i class="ti ti-trash"></i> Delete</button><button class="btn ok" id="dOk"><i class="ti ti-check"></i> ${p.confirmed?'Unconfirm':'Confirm'}</button></div>`:''}
   </div>`,id);
  if(!open)return;
  const field=(sel,key,num)=>{const el=$(sel);if(!el)return;el.addEventListener('change',async()=>{
   const val=num?(el.value===''?null:Number(el.value)):el.value;if(await patch(id,{[key]:val},'Saved'))refreshSheet(id)})};
  field('#eQty','quantity',true);field('#eType','containerType');field('#eMat','containerMaterial');field('#eInner','innerCount',true);
- $('#dRm').onclick=async()=>{closeSheet();if(await patch(id,{removed:true}))toast('Removed '+p.product_name,'Undo',()=>patch(id,{removed:false},'Restored'))};
+ $('#dRm').onclick=async()=>{closeSheet();if(await patch(id,{removed:true}))toast("Deleted "+p.product_name,"Undo",()=>patch(id,{removed:false},'Restored'))};
  $('#dOk').onclick=async()=>{const c=!p.confirmed;closeSheet();await patch(id,{confirmed:c},c?'Confirmed':'Marked as needs review')}}
 function refreshSheet(id){if(sheetFor!==id)return;const y=$('#sheet').scrollTop;detail(id);$('#sheet').scrollTop=y}
 
