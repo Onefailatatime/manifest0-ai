@@ -55,11 +55,10 @@ input::placeholder{color:var(--m0-text-muted)}
 .intro{font-size:var(--m0-fs-sm);color:var(--m0-text-2);margin-top:16px}
 
 /* the yellow camera button */
-.snap{display:flex;align-items:center;gap:12px;width:100%;margin-top:16px;padding:14px;border:0;border-radius:var(--m0-radius-lg);background:var(--m0-hazard);color:var(--m0-on-hazard);text-align:left}
+.snap{display:flex;align-items:center;gap:12px;width:100%;margin:16px 0 4px;padding:14px;border:0;border-radius:var(--m0-radius-lg);background:var(--m0-hazard);color:var(--m0-on-hazard);text-align:left}
 .snap .dot{width:46px;height:46px;border-radius:50%;background:var(--m0-on-hazard);color:var(--m0-hazard);display:grid;place-items:center;font-size:24px;flex:0 0 46px}
 .snap b{display:block;font-size:1.0625rem;font-weight:600}
 .snap span{font-size:var(--m0-fs-sm)}
-.lib{display:block;margin:6px auto 0;background:none;border:0;color:var(--m0-text-2);font-size:var(--m0-fs-sm);text-decoration:underline;min-height:var(--m0-tap)}
 
 /* photos picked, not yet sent */
 .tray{margin-top:8px;padding:10px;border:1px solid var(--m0-line);border-radius:var(--m0-radius-lg)}
@@ -172,14 +171,12 @@ body.lock .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
     <section id="walk" hidden>
       <div id="capture">
         <button class="snap" id="snapBtn"><span class="dot"><i class="ti ti-camera"></i></span><span><b>Snap a label</b><span>One photo per label. For a packed box, the box and one item.</span></span></button>
-        <button class="lib" id="libBtn">or choose from library</button>
         <div class="tray" id="tray" hidden>
           <div class="thumbs" id="thumbs"></div>
           <div class="go"><span id="trayText"></span><button class="btn dark" id="readBtn"><i class="ti ti-send"></i> Read photos</button></div>
         </div>
       </div>
       <input class="sr" type="file" id="photoCam" accept="image/*" capture="environment">
-      <input class="sr" type="file" id="photoLib" accept="image/*" multiple>
       <div class="status" id="status" hidden><i class="ti ti-loader-2 spin"></i><span id="statusText"></span></div>
       <div class="banner" id="banner" hidden></div>
       <div class="count" id="count"></div>
@@ -268,8 +265,8 @@ function changeRoom(){
 $('#roomBtn').onclick=changeRoom;
 
 /* ---------- photos ---------- */
-$('#snapBtn').onclick=()=>$('#photoCam').click();$('#libBtn').onclick=()=>$('#photoLib').click();
-['photoCam','photoLib'].forEach(id=>{const el=document.getElementById(id);el.addEventListener('change',()=>{addPhotos(el.files);el.value=''})});
+$('#snapBtn').onclick=()=>$('#photoCam').click();
+$('#photoCam').addEventListener('change',e=>{addPhotos(e.target.files);e.target.value=''});
 function addPhotos(list){for(const f of list){if(!(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name)))continue;
  tray.push({id:++uid,file:f,url:URL.createObjectURL(f)})}renderTray()}
 function renderTray(){$('#tray').hidden=!tray.length;
@@ -379,7 +376,7 @@ function detail(id){
  const ing=JSON.parse(p.ingredients),haz=JSON.parse(p.hazard_statements),photos=JSON.parse(p.photo_keys);
  const m=p.manifest||{},packed=p.inner_type||p.container_type==='box'||p.container_type==='drum';
  const sdsLink=p.sds_key?`/api/files/${p.sds_key}`:p.sds_page_url||p.sds_url;
- const sdsText={pending:'Searching…',found:p.sds_source==='library'?'Found (from library)':'Found',page_only:'Manufacturer page only',not_found:'Not found'}[p.sds_status];
+ const sdsText={pending:'Searching…',found:p.sds_source==='library'?'Found (saved from an earlier visit)':'Found',page_only:'Manufacturer page only',not_found:'Not found'}[p.sds_status];
  const opt=(list,cur)=>list.map(x=>`<option${x===cur?' selected':''}>${x}</option>`).join('');
  openSheet(p.product_name,`
   ${photos.length?`<div class="photos">${photos.map(k=>`<a href="/api/files/${encodeURI(k)}" target="_blank"><img src="/api/files/${encodeURI(k)}" alt="Label photo" loading="lazy"></a>`).join('')}</div>`:''}
