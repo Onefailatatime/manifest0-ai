@@ -128,7 +128,17 @@ const productSchema = {
     },
     unNumber: { ...strOrNull, description: "UN/NA number if printed, e.g. \"UN1791\"; else null" },
     hazardStatements: strList,
-    ghsPictograms: { ...strList, description: "e.g. flame, corrosion, exclamation mark, health hazard" },
+    ghsPictograms: {
+      type: "array",
+      items: {
+        type: "string",
+        enum: ["explosive", "flammable", "oxidizer", "gas under pressure", "corrosive", "toxic", "harmful", "health hazard", "environment"],
+      },
+      description:
+        "GHS pictograms (red diamonds) printed on the label: exploding bomb = explosive, flame = flammable, " +
+        "flame over circle = oxidizer, gas cylinder = gas under pressure, corrosion = corrosive, skull = toxic, " +
+        "exclamation mark = harmful, person with starburst = health hazard, dead fish/tree = environment",
+    },
     ingredients: { ...strList, description: "active/hazardous ingredients with % if shown" },
     quantity: {
       type: "integer",
