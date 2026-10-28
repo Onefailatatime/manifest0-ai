@@ -162,13 +162,9 @@ body.out #app,body.out .sticky{display:none}
 @media (min-width:600px){.signin{min-height:auto;margin-top:6vh;border-radius:24px;overflow:hidden}.brand{padding:48px 32px 40px}.signin-card{border-radius:24px 24px 0 0}}
 
 /* GHS diamond: white square turned 45°, red border, black symbol */
-.ghs-row{display:flex;flex-wrap:wrap;gap:12px;padding:6px 4px}
-.ghs{width:44px;height:44px;padding:0;border:0;background:none;display:grid;place-items:center}
-.ghs span{width:32px;height:32px;transform:rotate(45deg);background:#fff;border:3px solid #E3000F;border-radius:3px;display:grid;place-items:center}
-.ghs i{transform:rotate(-45deg);color:#111;font-size:21px}
-.stmts{margin:-6px 0 16px;font-size:var(--m0-fs-sm)}
-.stmts summary{color:var(--m0-text-2);cursor:pointer;min-height:32px}
-.stmts ul{margin:6px 0 0 18px;color:var(--m0-text-2)}
+.ghs-row{display:flex;flex-wrap:wrap;gap:8px;padding:2px 0}
+.ghs{width:46px;height:46px;padding:0;border:0;background:none}
+.ghs img{width:100%;height:100%;display:block}
 
 /* room dropdown */
 .top{position:relative}
@@ -427,19 +423,20 @@ function newWalk(){
 
 /* ---------- GHS hazard pictograms (the red diamonds on labels) ---------- */
 const GHS=[
- {code:'GHS01',icon:'bomb',name:'Explosive',match:/explo|bomb/},
- {code:'GHS03',icon:'circle-dot',name:'Oxidizer',match:/oxidi|over circle/},
- {code:'GHS02',icon:'flame',name:'Flammable',match:/flam/},
- {code:'GHS04',icon:'cylinder',name:'Gas under pressure',match:/cylinder|gas under|compressed/},
- {code:'GHS05',icon:'test-pipe',name:'Corrosive',match:/corros/},
- {code:'GHS06',icon:'skull',name:'Toxic',match:/skull|toxic/},
- {code:'GHS07',icon:'exclamation-mark',name:'Harmful or irritant',match:/exclam|harmful|irritant/},
- {code:'GHS08',icon:'user-exclamation',name:'Serious health hazard',match:/health/},
- {code:'GHS09',icon:'fish',name:'Harmful to the environment',match:/environ|fish|tree|aquatic/}];
+ {code:'GHS01',name:'Explosive',match:/explo|bomb/},
+ {code:'GHS03',name:'Oxidizer',match:/oxidi|over circle/},
+ {code:'GHS02',name:'Flammable',match:/flam/},
+ {code:'GHS04',name:'Gas under pressure',match:/cylinder|gas under|compressed/},
+ {code:'GHS05',name:'Corrosive',match:/corros/},
+ {code:'GHS06',name:'Toxic',match:/skull|toxic/},
+ {code:'GHS07',name:'Harmful or irritant',match:/exclam|harmful|irritant/},
+ {code:'GHS08',name:'Serious health hazard',match:/health/},
+ {code:'GHS09',name:'Harmful to the environment',match:/environ|fish|tree|aquatic/}];
 /* Muse names the symbols in words ("flame", "exclamation mark"); turn them into GHS codes, once each. */
 function ghsOf(p){const seen=new Set();for(const t of JSON.parse(p.ghs_pictograms||'[]')){const g=GHS.find(g=>g.match.test(String(t).toLowerCase()));if(g)seen.add(g)}
  return GHS.filter(g=>seen.has(g))}
-const ghsBadge=g=>`<button class="ghs" type="button" title="${g.name} (${g.code})" aria-label="${g.name}" data-ghs="${g.name}"><span><i class="ti ti-${g.icon}"></i></span></button>`;
+/* Official GHS pictograms (UNECE, public domain, via Wikimedia Commons) in /ghs/. */
+const ghsBadge=g=>`<button class="ghs" type="button" title="${g.name} (${g.code})" aria-label="${g.name}" data-ghs="${g.name}"><img src="/ghs/${g.code}.svg" alt=""></button>`;
 document.addEventListener('click',e=>{const b=e.target.closest('[data-ghs]');if(b)toast(b.dataset.ghs)});
 
 /* ---------- rendering ---------- */
@@ -501,7 +498,7 @@ $('#rows').addEventListener('click',e=>{
  const b=e.target.closest('.row');if(b)detail(b.dataset.id)});
 function detail(id){
  const p=data.products.find(x=>x.id===id);if(!p)return;const open=isOpen();
- const ing=JSON.parse(p.ingredients),haz=JSON.parse(p.hazard_statements),photos=JSON.parse(p.photo_keys),pics=ghsOf(p);
+ const ing=JSON.parse(p.ingredients),photos=JSON.parse(p.photo_keys),pics=ghsOf(p);
  const m=p.manifest||{},packed=p.inner_type||p.container_type==='box'||p.container_type==='drum';
  const sdsLink=p.sds_key?`/api/files/${p.sds_key}`:p.sds_page_url||p.sds_url;
  const sdsText={pending:'Searching…',found:p.sds_source==='library'?'Found (saved from an earlier visit)':'Found',page_only:'Manufacturer page only',not_found:'Not found'}[p.sds_status];
@@ -517,7 +514,6 @@ function detail(id){
    <dt>Room</dt><dd>${esc(p.room)}</dd>
    <dt>SDS</dt><dd>${esc(sdsText)}</dd>
   </dl>
-  ${haz.length?`<details class="stmts"><summary>Hazard statements (${haz.length})</summary><ul>${haz.map(h=>`<li>${esc(h)}</li>`).join('')}</ul></details>`:''}
   ${open?`<div class="edit">
    <div class="grid2"><div><label for="eQty">Containers</label><input id="eQty" class="field" type="number" min="1" inputmode="numeric" value="${p.quantity}"></div>
     <div><label for="eType">Type</label><select id="eType" class="field">${opt(TYPES,p.container_type)}</select></div>
