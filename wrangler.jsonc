@@ -30,7 +30,7 @@
   "vars": {
     "MUSE_MODEL": "muse-spark-1.3",
     // Sender address on our domain, verified in Resend.
-    "EMAIL_FROM": "Manifest Zero <reports@manifest0ai.com>"
+    "EMAIL_FROM": "Manifest0 AI <reports@manifest0ai.com>"
   }
   // Secrets (not in this file): MODEL_API_KEY, RESEND_API_KEY.
   // Locally in .dev.vars; in production in the dashboard (Settings → Variables and Secrets).

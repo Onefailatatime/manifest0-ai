@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#041D3E">
-<title>Manifest0-Ai</title>
+<meta name="theme-color" content="#FFFFFF">
+<title>Manifest0 AI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
@@ -33,16 +33,22 @@ button{cursor:pointer}
 [hidden]{display:none!important}
 .wrap{max-width:var(--m0-content-max);margin:0 auto;padding-bottom:120px}
 
-/* top bar: navy in light, steel in dark */
-.top{background:var(--m0-header);color:var(--m0-on-header);padding:calc(12px + env(safe-area-inset-top)) var(--m0-gutter) 18px}
+/* top: small logo + account, then where you are (site, and the room as a dropdown) */
+.top{position:relative;background:var(--m0-bg);color:var(--m0-text);padding:calc(10px + env(safe-area-inset-top)) var(--m0-gutter) 2px}
 .bar{display:flex;align-items:center;justify-content:space-between;min-height:var(--m0-tap)}
-.mark{font-weight:600;font-size:1.0625rem;letter-spacing:-.01em;background:none;border:0;padding:0;color:inherit}
-.mark b{color:var(--m0-hazard);font-weight:600}
-.icon-btn{width:var(--m0-tap);height:var(--m0-tap);border:0;background:none;color:inherit;font-size:22px;display:grid;place-items:center;border-radius:999px;margin-right:-10px}
-.site{font-size:var(--m0-fs-xs);opacity:.75;margin-top:10px}
-.where{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
-.where h1{font-size:1.375rem;font-weight:600;letter-spacing:-.01em;line-height:1.25}
-.link{background:none;border:0;padding:6px 0;color:var(--m0-hazard);font-size:var(--m0-fs-sm);font-weight:500;white-space:nowrap}
+.mark{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;letter-spacing:-.01em;background:none;border:0;padding:0;color:inherit}
+.logo{width:26px;height:26px;border-radius:8px;background:var(--m0-hazard);color:var(--m0-on-hazard);display:grid;place-items:center;font-size:15px}
+.avatar-btn{width:34px;height:34px;border-radius:50%;border:0;background:var(--m0-primary);color:var(--m0-on-primary);font-weight:600;font-size:14px;display:grid;place-items:center}
+[data-theme=dark] .avatar-btn{background:var(--m0-hazard);color:var(--m0-on-hazard)}
+.ctx{padding-top:14px}
+.site{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--m0-text-2)}
+.site i{font-size:15px}
+.ctx h1{font-size:1.375rem;font-weight:600;letter-spacing:-.01em;line-height:1.25;margin-top:2px}
+.room-box{margin-top:8px;width:100%;height:48px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;border:1px solid var(--m0-line);border-radius:12px;background:var(--m0-bg);font-size:16px;font-weight:500;box-shadow:0 1px 2px rgba(15,21,31,.05);text-align:left}
+.room-box>span{display:flex;align-items:center;gap:8px;min-width:0}
+.room-box #roomTitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.room-box i{color:var(--m0-text-2);font-size:18px;flex:0 0 auto}
+.room-box[aria-expanded=true]{border-color:var(--m0-border-strong)}
 
 main{padding:0 var(--m0-gutter)}
 
@@ -200,9 +206,7 @@ body.out #app,body.out .sticky{display:none}
 .pdf a{color:var(--m0-accent)}
 
 /* room dropdown */
-.top{position:relative}
-.link i{font-size:14px;vertical-align:-2px}
-.menu{position:absolute;right:var(--m0-gutter);left:var(--m0-gutter);top:calc(100% - 8px);z-index:30;background:var(--m0-bg);color:var(--m0-text);border:1px solid var(--m0-line);border-radius:var(--m0-radius-lg);box-shadow:var(--m0-shadow-2);padding:6px;max-height:60vh;overflow:auto}
+.menu{position:absolute;right:var(--m0-gutter);left:var(--m0-gutter);top:calc(100% + 4px);z-index:30;background:var(--m0-bg);color:var(--m0-text);border:1px solid var(--m0-line);border-radius:var(--m0-radius-lg);box-shadow:var(--m0-shadow-2);padding:6px;max-height:60vh;overflow:auto}
 .menu .opt{display:flex;align-items:center;gap:10px;width:100%;min-height:var(--m0-tap);padding:0 10px;border:0;border-radius:var(--m0-radius-md);background:none;text-align:left;font-size:var(--m0-fs-body)}
 .menu .opt:active,.menu .opt.cur{background:var(--m0-surface-2)}
 .menu .opt span{flex:1}
@@ -231,7 +235,7 @@ body.out #app,body.out .sticky{display:none}
 <section class="signin" id="signin" hidden>
   <div class="brand">
     <div class="badge-mark"><i class="ti ti-flask"></i></div>
-    <div class="big-mark">Manifest0<b>-Ai</b></div>
+    <div class="big-mark">Manifest0 <b>AI</b></div>
     <p>Walk the site, snap the labels. Get the waste inventory and every SDS, sent to your client.</p>
   </div>
   <form class="signin-card" id="signinForm" novalidate>
@@ -247,14 +251,17 @@ body.out #app,body.out .sticky{display:none}
 <div class="wrap" id="app">
   <header class="top">
     <div class="bar">
-      <button class="mark" id="markBtn">Manifest0<b>-Ai</b></button>
-      <button class="icon-btn" id="accountBtn" aria-label="Account and settings"><i class="ti ti-user-circle"></i></button>
+      <button class="mark" id="markBtn"><span class="logo"><i class="ti ti-flask"></i></span>Manifest0 AI</button>
+      <button class="avatar-btn" id="accountBtn" aria-label="Account and settings"><i class="ti ti-user"></i></button>
     </div>
-    <div class="site" id="siteLine">New walk</div>
-    <div class="where"><h1 id="roomTitle">Start a site walk</h1><button class="link" id="roomBtn" aria-haspopup="true" aria-expanded="false" hidden>Change room <i class="ti ti-chevron-down"></i></button></div>
-    <div class="menu" id="roomMenu" hidden>
-      <div id="roomList"></div>
-      <div class="menu-new"><input id="newRoom" class="field" type="text" autocomplete="off" placeholder="New room"><button class="btn dark" id="addRoom" aria-label="Add room"><i class="ti ti-plus"></i></button></div>
+    <div class="ctx">
+      <div class="site" id="siteRow" hidden><i class="ti ti-map-pin"></i><span id="siteLine"></span></div>
+      <h1 id="pageTitle">Start a site walk</h1>
+      <button class="room-box" id="roomBtn" aria-haspopup="true" aria-expanded="false" hidden><span><i class="ti ti-door"></i><span id="roomTitle"></span></span><i class="ti ti-selector"></i></button>
+      <div class="menu" id="roomMenu" hidden>
+        <div id="roomList"></div>
+        <div class="menu-new"><input id="newRoom" class="field" type="text" autocomplete="off" placeholder="New room"><button class="btn dark" id="addRoom" aria-label="Add room"><i class="ti ti-plus"></i></button></div>
+      </div>
     </div>
   </header>
 
@@ -317,7 +324,7 @@ function hideT(){$('#toast').classList.remove('show')}
 /* ---------- theme: light, dark, or follow the phone (system) ---------- */
 const sysDark=matchMedia('(prefers-color-scheme: dark)');
 function applyTheme(){const pick=store.get('m0-theme')||'system',t=pick==='system'?(sysDark.matches?'dark':'light'):pick;
- root.setAttribute('data-theme',t);document.querySelector('meta[name=theme-color]').content=t==='dark'?'#252C32':'#041D3E'}
+ root.setAttribute('data-theme',t);document.querySelector('meta[name=theme-color]').content=t==='dark'?'#252C32':'#FFFFFF'}
 sysDark.addEventListener('change',applyTheme);applyTheme();
 $('#markBtn').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
 
@@ -491,10 +498,12 @@ const sdsChip=p=>({pending:'<span class="chip wait">SDS…</span>',found:'<span 
 function render(){
  const v=data&&data.visit,open=isOpen(),walking=!!visitId,signedIn=!!me;
  $('#signin').hidden=signedIn;document.body.classList.toggle('out',!signedIn);$('#setup').hidden=!signedIn||walking;$('#walk').hidden=!signedIn||!walking;
- $('#siteLine').textContent=!signedIn?'Welcome':walking?(v&&v.site_name)||'Site walk':'New walk';
- $('#roomTitle').textContent=!signedIn?'Sign in':walking?(open?room||'Choose a room':(v.status==='done'?(v.email_sent_at?'Report sent':'Report saved'):v.status==='failed'?'Report not sent':'Sending report')):'Start a site walk';
- $('#roomBtn').hidden=!signedIn||!walking||!open;$('#capture').hidden=!walking||!open;
- if(walking&&open&&!room)$('#roomTitle').textContent='Choose a room';
+ const roomPicker=signedIn&&walking&&open;
+ $('#siteRow').hidden=!walking;$('#siteLine').textContent=(v&&v.site_name)||'';
+ $('#pageTitle').hidden=roomPicker;$('#roomBtn').hidden=!roomPicker;$('#capture').hidden=!walking||!open;
+ $('#pageTitle').textContent=!walking?'Start a site walk':v&&v.status==='done'?(v.email_sent_at?'Report sent':'Report saved'):v&&v.status==='failed'?'Report not sent':'Sending report';
+ $('#roomTitle').textContent=room||'Choose a room';
+ $('#accountBtn').innerHTML=me?esc(me[0].toUpperCase()):'<i class="ti ti-user"></i>';
 
  // status line
  const reading=data?data.photos.pending:0,sds=sdsPending();

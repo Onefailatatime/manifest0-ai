@@ -1,4 +1,4 @@
-# Manifest0-Ai
+# Manifest0 AI
 
 Photograph chemical labels → Muse Spark reads them into an inventory → finds each product's SDS on the web →
 saves the PDFs → emails the inventory + SDS sheets to the technician and the client.
@@ -78,7 +78,7 @@ Free plan: 3,000 emails/month, 100/day, up to 40 MB of attachments per email.
    ```bash
    npx wrangler secret put RESEND_API_KEY
    ```
-7. **Set the sender** in `wrangler.jsonc` → `vars.EMAIL_FROM`, e.g. `"Manifest Zero <reports@mail.yourdomain.com>"`.
+7. **Set the sender** in `wrangler.jsonc` → `vars.EMAIL_FROM`, e.g. `"Manifest0 AI <reports@yourdomain.com>"`.
 
 Until the domain is verified, Resend only allows sending from `onboarding@resend.dev` to the email address
 the Resend account was created with, which is fine for testing.
