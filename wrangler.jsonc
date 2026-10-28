@@ -8,9 +8,14 @@
   // Static files (the upload page) served from ./public
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
 
-  // D1 = Cloudflare's SQL database (SQLite). Our tables: scans, products.
+  // D1 = Cloudflare's SQL database (SQLite). Tables: see migrations/
   "d1_databases": [
-    { "binding": "DB", "database_name": "manifest0-db", "migrations_dir": "migrations" }
+    {
+      "binding": "DB",
+      "database_name": "manifest0-db",
+      "database_id": "b56bcbf4-26e7-45ff-b3b8-64d2d7f800a3",
+      "migrations_dir": "migrations"
+    }
   ],
 
   // R2 = file storage. Label photos and SDS PDFs live here.
@@ -24,8 +29,8 @@
 
   "vars": {
     "MUSE_MODEL": "muse-spark-1.3",
-    // Until the Resend domain is verified, onboarding@resend.dev can only send to the Resend account's own address.
-    "EMAIL_FROM": "Manifest Zero <onboarding@resend.dev>"
+    // Sender address on our domain, verified in Resend.
+    "EMAIL_FROM": "Manifest Zero <reports@manifest0ai.com>"
   }
   // Secrets (not in this file): MODEL_API_KEY, RESEND_API_KEY.
   // Locally in .dev.vars; in production in the dashboard (Settings → Variables and Secrets).
