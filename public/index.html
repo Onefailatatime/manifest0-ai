@@ -92,8 +92,16 @@ input::placeholder{color:var(--m0-text-muted)}
 .btn.wide{width:100%}
 
 /* status line while Muse works */
-.status{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:var(--m0-fs-sm);color:var(--m0-text-2)}
-.status i{font-size:18px}
+.status{display:flex;align-items:center;gap:12px;margin-top:12px;padding:12px;border:1px solid var(--m0-line);border-radius:14px}
+.status b{display:block;font-weight:600;font-size:15px}
+.status span{display:block;font-size:var(--m0-fs-xs);color:var(--m0-text-2);margin-top:1px}
+.m0-loader{width:44px;height:44px;flex:0 0 44px}
+/* the diamond fills from the bottom like a tank, then the 0 traces itself, on a loop */
+.ld-fill{animation:ldFill 2.4s cubic-bezier(.6,0,.4,1) infinite}
+.ld-zero{stroke-dasharray:100;animation:ldZero 2.4s ease-in-out infinite}
+@keyframes ldFill{0%{transform:translateY(60px)}45%,85%{transform:translateY(0)}100%{transform:translateY(-60px)}}
+@keyframes ldZero{0%,35%{stroke-dashoffset:100}75%,85%{stroke-dashoffset:0}100%{stroke-dashoffset:-100}}
+@media (prefers-reduced-motion:reduce){.ld-fill,.ld-zero{animation:none}.ld-zero{stroke-dashoffset:0}}
 .spin{animation:spin .9s linear infinite;display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
 .banner{margin-top:16px;padding:12px;border-radius:var(--m0-radius-md);font-size:var(--m0-fs-sm);background:var(--m0-success-bg);color:var(--m0-success)}
@@ -215,6 +223,12 @@ body.out #app,body.out .sticky{display:none}
 .menu-new .field{margin:0;height:var(--m0-tap)}
 .menu-new .btn{flex:0 0 var(--m0-tap);padding:0;font-size:18px}
 
+.ctx{position:relative}
+.ctx .menu{left:0;right:0}
+#siteMenu{top:50px}
+.menu .new-loc{border-top:1px solid var(--m0-line);border-radius:0 0 var(--m0-radius-md) var(--m0-radius-md);margin-top:4px;color:var(--m0-text);font-weight:500}
+.menu .new-loc i{color:var(--m0-text-2)}
+
 /* account sheet */
 .who{display:flex;align-items:center;gap:12px;margin-bottom:18px}
 .avatar{width:48px;height:48px;border-radius:50%;background:var(--m0-primary);color:var(--m0-on-primary);display:grid;place-items:center;font-weight:600;font-size:18px;flex:0 0 48px}
@@ -265,6 +279,10 @@ body.out #app,body.out .sticky{display:none}
     </div>
     <div class="ctx">
       <button class="site" id="siteRow" hidden aria-label="Locations"><i class="ti ti-map-pin"></i><span id="siteLine"></span><i class="ti ti-chevron-down chev-s"></i></button>
+      <div class="menu" id="siteMenu" hidden>
+        <div id="siteList"><div class="loc-empty">Loading…</div></div>
+        <button class="opt new-loc" id="siteNew"><i class="ti ti-plus"></i><span>New location</span></button>
+      </div>
       <h1 id="pageTitle">Start a site walk</h1>
       <button class="room-box" id="roomBtn" aria-haspopup="true" aria-expanded="false" hidden><span><i class="ti ti-door"></i><span id="roomTitle"></span></span><i class="ti ti-selector"></i></button>
       <div class="menu" id="roomMenu" hidden>
@@ -299,7 +317,18 @@ body.out #app,body.out .sticky{display:none}
       </div>
       <!-- No "capture" attribute: the phone asks Take Photo or Photo Library. -->
       <input class="sr" type="file" id="photoCam" accept="image/*" multiple>
-      <div class="status" id="status" hidden><i class="ti ti-loader-2 spin"></i><span id="statusText"></span></div>
+      <!-- while Muse works: the logo fills up and its 0 draws itself -->
+      <div class="status" id="status" role="status" hidden>
+        <svg class="m0-loader" viewBox="0 0 60 60" aria-hidden="true">
+          <defs><clipPath id="ldDiamond"><rect x="12" y="12" width="36" height="36" rx="4" transform="rotate(45 30 30)"/></clipPath></defs>
+          <rect width="60" height="60" rx="13" fill="#041D3E"/>
+          <rect x="12" y="12" width="36" height="36" rx="4" transform="rotate(45 30 30)" fill="#F3BF2B" opacity=".22"/>
+          <g clip-path="url(#ldDiamond)"><rect class="ld-fill" x="0" y="0" width="60" height="60" fill="#F3BF2B"/></g>
+          <ellipse cx="30" cy="30" rx="7.5" ry="10" fill="none" stroke="#041D3E" stroke-opacity=".18" stroke-width="4.5"/>
+          <ellipse class="ld-zero" cx="30" cy="30" rx="7.5" ry="10" fill="none" stroke="#041D3E" stroke-width="4.5" stroke-linecap="round" pathLength="100"/>
+        </svg>
+        <div><b id="statusText"></b><span id="statusSub"></span></div>
+      </div>
       <div class="banner" id="banner" hidden></div>
       <div id="rows"></div>
     </section>
@@ -384,7 +413,14 @@ function account(){
  $('#signOut').onclick=()=>{closeSheet();me='';store.set('m0-me','');$('#me').value='';newWalk()};
  $('#newLoc').onclick=()=>{closeSheet();newWalk()};
  loadLocations()}
-$('#siteRow').onclick=account;
+/* Tapping the site name: a dropdown of your locations (switch, or start a new one). Deleting stays in Account. */
+async function toggleSites(show){const m=$('#siteMenu');show=show??m.hidden;m.hidden=!show;$('#siteRow').setAttribute('aria-expanded',show);
+ if(!show)return;toggleRooms(false);
+ let list;try{list=(await api('/api/visits?email='+encodeURIComponent(me))).visits}catch(e){list=null}
+ $('#siteList').innerHTML=!list?'<div class="loc-empty">Your locations didn&#39;t load.</div>':list.map(v=>`<button class="opt${v.id===visitId?' cur':''}" data-site="${v.id}"><span>${esc(v.site_name||'Unnamed site')}</span><small>${plural(v.products,'product')}</small>${v.id===visitId?'<i class="ti ti-check"></i>':''}</button>`).join('')}
+$('#siteRow').onclick=e=>{e.stopPropagation();toggleSites()};
+$('#siteList').addEventListener('click',e=>{const b=e.target.closest('[data-site]');if(!b)return;toggleSites(false);openVisit(b.dataset.site)});
+$('#siteNew').onclick=()=>{toggleSites(false);newWalk()};
 
 /* Locations = the sites you've walked, newest first. Tap one to go back to it. */
 async function loadLocations(){
@@ -435,7 +471,7 @@ function allRooms(){let saved=[];try{saved=JSON.parse(store.get(roomsKey())||'[]
  return [...new Set([...saved,...(data&&data.rooms||[]),...(data?data.products.map(p=>p.room):[]),room].filter(Boolean))]}
 function setRoom(r){room=r;store.set('m0-room',r);if(visitId)store.set(roomsKey(),JSON.stringify(allRooms()));renderTray();render()}
 function toggleRooms(show){const m=$('#roomMenu');show=show??m.hidden;m.hidden=!show;$('#roomBtn').setAttribute('aria-expanded',show);
- if(!show)return;
+ if(!show)return;$('#siteMenu').hidden=true;
  $('#roomList').innerHTML=allRooms().map(r=>{const n=data?data.products.filter(p=>p.room===r).length:0;
   return `<button class="opt${r===room?' cur':''}" data-room="${esc(r)}"><span>${esc(r)}</span><small>${plural(n,'product')}</small>${r===room?'<i class="ti ti-check"></i>':''}</button>`}).join('');
  $('#newRoom').value=''}
@@ -443,7 +479,7 @@ $('#roomBtn').onclick=e=>{e.stopPropagation();toggleRooms()};
 $('#roomList').addEventListener('click',e=>{const b=e.target.closest('[data-room]');if(!b)return;toggleRooms(false);if(b.dataset.room!==room){setRoom(b.dataset.room);toast('Now in '+room)}});
 const addRoom=()=>{const v=$('#newRoom').value.trim();if(!v){$('#newRoom').focus();return}toggleRooms(false);setRoom(v);toast('Now in '+v)};
 $('#addRoom').onclick=addRoom;$('#newRoom').addEventListener('keydown',e=>{if(e.key==='Enter')addRoom()});
-document.addEventListener('click',e=>{if(!$('#roomMenu').hidden&&!e.target.closest('#roomMenu'))toggleRooms(false)});
+document.addEventListener('click',e=>{if(!$('#roomMenu').hidden&&!e.target.closest('#roomMenu'))toggleRooms(false);if(!$('#siteMenu').hidden&&!e.target.closest('#siteMenu'))toggleSites(false)});
 
 /* ---------- photos ---------- */
 $('#snapBtn').onclick=()=>$('#photoCam').click();
@@ -557,6 +593,7 @@ function render(){
  const reading=data?data.photos.pending:0,sds=sdsPending();
  const st=uploading?`Uploading ${plural(uploading,'photo')}…`:reading?`Reading ${plural(reading,'label photo')}…`:sds?`Finding ${plural(sds,'SDS sheet')}…`:v&&v.status==='finishing'?'Sending the report…':'';
  $('#status').hidden=!st;$('#statusText').textContent=st;
+ $('#statusSub').textContent=uploading?'Making photos smaller and sending them':reading?'Muse is reading product names, hazards and container counts':sds?'Searching manufacturer websites for each Safety Data Sheet':'Attaching the SDS sheets to the email';
 
  // result banner
  const saved=data&&data.log.map(l=>l.match(/Report: (\/api\/files\/\S+)/)).filter(Boolean).at(-1),bn=$('#banner');
