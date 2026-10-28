@@ -218,7 +218,10 @@ body.out #app,body.out .sticky{display:none}
 .menu .opt:active,.menu .opt.cur{background:var(--m0-surface-2)}
 .menu .opt span{flex:1}
 .menu .opt small{color:var(--m0-text-2);font-size:var(--m0-fs-xs)}
-.menu .opt i{color:var(--m0-success);font-size:18px}
+.menu .opt i{color:var(--m0-success);font-size:18px;width:18px;flex:0 0 18px;visibility:hidden}
+.menu .opt.cur i{visibility:visible}
+.menu .opt small{font-variant-numeric:tabular-nums}
+.menu .new-loc i{visibility:visible;color:var(--m0-text-2)}
 .menu-new{display:flex;gap:6px;padding:6px 4px 2px;border-top:1px solid var(--m0-line);margin-top:4px}
 .menu-new .field{margin:0;height:var(--m0-tap)}
 .menu-new .btn{flex:0 0 var(--m0-tap);padding:0;font-size:18px}
@@ -417,7 +420,7 @@ function account(){
 async function toggleSites(show){const m=$('#siteMenu');show=show??m.hidden;m.hidden=!show;$('#siteRow').setAttribute('aria-expanded',show);
  if(!show)return;toggleRooms(false);
  let list;try{list=(await api('/api/visits?email='+encodeURIComponent(me))).visits}catch(e){list=null}
- $('#siteList').innerHTML=!list?'<div class="loc-empty">Your locations didn&#39;t load.</div>':list.map(v=>`<button class="opt${v.id===visitId?' cur':''}" data-site="${v.id}"><span>${esc(v.site_name||'Unnamed site')}</span><small>${plural(v.products,'product')}</small>${v.id===visitId?'<i class="ti ti-check"></i>':''}</button>`).join('')}
+ $('#siteList').innerHTML=!list?'<div class="loc-empty">Your locations didn&#39;t load.</div>':list.map(v=>`<button class="opt${v.id===visitId?' cur':''}" data-site="${v.id}"><span>${esc(v.site_name||'Unnamed site')}</span><small>${plural(v.products,'product')}</small><i class="ti ti-check"></i></button>`).join('')}
 $('#siteRow').onclick=e=>{e.stopPropagation();toggleSites()};
 $('#siteList').addEventListener('click',e=>{const b=e.target.closest('[data-site]');if(!b)return;toggleSites(false);openVisit(b.dataset.site)});
 $('#siteNew').onclick=()=>{toggleSites(false);newWalk()};
@@ -473,7 +476,7 @@ function setRoom(r){room=r;store.set('m0-room',r);if(visitId)store.set(roomsKey(
 function toggleRooms(show){const m=$('#roomMenu');show=show??m.hidden;m.hidden=!show;$('#roomBtn').setAttribute('aria-expanded',show);
  if(!show)return;$('#siteMenu').hidden=true;
  $('#roomList').innerHTML=allRooms().map(r=>{const n=data?data.products.filter(p=>p.room===r).length:0;
-  return `<button class="opt${r===room?' cur':''}" data-room="${esc(r)}"><span>${esc(r)}</span><small>${plural(n,'product')}</small>${r===room?'<i class="ti ti-check"></i>':''}</button>`}).join('');
+  return `<button class="opt${r===room?' cur':''}" data-room="${esc(r)}"><span>${esc(r)}</span><small>${plural(n,'product')}</small><i class="ti ti-check"></i></button>`}).join('');
  $('#newRoom').value=''}
 $('#roomBtn').onclick=e=>{e.stopPropagation();toggleRooms()};
 $('#roomList').addEventListener('click',e=>{const b=e.target.closest('[data-room]');if(!b)return;toggleRooms(false);if(b.dataset.room!==room){setRoom(b.dataset.room);toast('Now in '+room)}});
