@@ -88,7 +88,11 @@ async function addPhotos(request: Request, env: Env, visitId: string) {
 
 /** Technician corrects a product's container count or type. The agent won't overwrite it afterwards. */
 async function editProduct(request: Request, env: Env, productId: string) {
-  const body = (await request.json()) as { quantity?: number; containerType?: string; containerMaterial?: string };
+  const body = (await request.json()) as {
+    quantity?: number; containerType?: string; containerMaterial?: string; innerCount?: number | null;
+  };
+  const innerCount = body.innerCount == null ? null : Number(body.innerCount);
+  if (innerCount !== null && (!Number.isInteger(innerCount) || innerCount < 0)) return error("Items inside must be a whole number.");
   const quantity = Number(body.quantity);
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100000) return error("Count must be a whole number, 1 or more.");
   if (!CONTAINER_TYPES.includes(body.containerType as ContainerType)) return error("Unknown container type.");
@@ -101,9 +105,10 @@ async function editProduct(request: Request, env: Env, productId: string) {
   if (row.status !== "open") return error("This visit is already finished.");
 
   await env.DB.prepare(
-    `UPDATE products SET quantity = ?, container_type = ?, container_material = ?, count_note = NULL, count_edited = 1
+    `UPDATE products SET quantity = ?, container_type = ?, container_material = ?,
+       inner_count = CASE WHEN ? THEN ? ELSE inner_count END, count_note = NULL, count_edited = 1
      WHERE id = ?`,
-  ).bind(quantity, body.containerType, body.containerMaterial, productId).run();
+  ).bind(quantity, body.containerType, body.containerMaterial, body.innerCount !== undefined ? 1 : 0, innerCount, productId).run();
   return Response.json({ ok: true });
 }
 

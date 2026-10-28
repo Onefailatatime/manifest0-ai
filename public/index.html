@@ -46,6 +46,7 @@
     .empty { color:var(--muted); text-align:center; padding:24px; }
     .count { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
     .code { color:var(--text); letter-spacing:.5px; }
+    .contents { width:100%; font-size:13px; color:var(--muted); margin-top:4px; }
     .count input, .count select { padding:4px 6px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--text); font:inherit; font-size:14px; }
     .count input { width:56px; }
     .note { color:var(--warn); font-style:italic; }
@@ -222,25 +223,36 @@
     const code = p.manifest.code
       ? `<br><small>Manifest: <b class="code">${p.quantity} ${p.manifest.code}</b></small>`
       : `<br><small>Manifest: ${esc(p.manifest.hint)}</small>`;
-    if (!open) return `<b>${p.quantity} × ${esc(p.container_material)} ${esc(p.container_type)}</b>${code}${size}${note}`;
+    const itemSize = p.inner_size ? `, ${esc(p.inner_size)} each` : "";
+    if (!open) {
+      const contents = p.inner_type
+        ? `<br><small>contains ${p.inner_count != null ? "~" + p.inner_count + " " : ""}${esc(p.inner_type)}${itemSize}</small>` : "";
+      return `<b>${p.quantity} × ${esc(p.container_material)} ${esc(p.container_type)}</b>${contents}${code}${size}${note}`;
+    }
+    const contents = p.inner_type
+      ? `<div class="count contents">contains ~<input type="number" min="0" value="${p.inner_count ?? ""}"
+           aria-label="Items inside"> ${esc(p.inner_type)}${itemSize}</div>` : "";
     return `<div class="count" data-id="${p.id}">
         <input type="number" min="1" value="${p.quantity}" aria-label="Number of containers"> ×
         <select aria-label="Container material">${optionsFor(MATERIALS, p.container_material)}</select>
         <select aria-label="Container type">${optionsFor(CONTAINER_TYPES, p.container_type)}</select>
         ${p.count_edited ? `<span class="saved" title="Corrected by technician">✓</span>` : ""}
+        ${contents}
       </div>${code}${size}${note}`;
   }
 
   // Save a corrected count/type as soon as it's changed.
   $("rows").addEventListener("change", async (e) => {
-    const box = e.target.closest(".count");
+    const box = e.target.closest(".count[data-id]");
     if (!box) return;
-    const quantity = Number(box.querySelector("input").value);
+    const quantity = Number(box.querySelector('[aria-label="Number of containers"]').value);
     const containerMaterial = box.querySelector('[aria-label="Container material"]').value;
     const containerType = box.querySelector('[aria-label="Container type"]').value;
+    const inner = box.querySelector('[aria-label="Items inside"]');
+    const body = { quantity, containerType, containerMaterial };
+    if (inner) body.innerCount = inner.value === "" ? null : Number(inner.value);
     const res = await fetch(`/api/products/${box.dataset.id}`, {
-      method: "PATCH", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ quantity, containerType, containerMaterial }),
+      method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
     });
     if (!res.ok) alert((await res.json()).error);
     document.activeElement.blur();

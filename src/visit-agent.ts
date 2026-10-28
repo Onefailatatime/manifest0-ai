@@ -80,7 +80,7 @@ export class VisitAgent extends Agent<Env, VisitState> {
           const edited = existing.count_edited === 1;
           statements.push(this.db(
             `UPDATE products SET manufacturer = ?, product_code = ?, container_type = ?, container_material = ?,
-               container_size = ?, physical_state = ?,
+               container_size = ?, inner_type = ?, inner_count = ?, inner_size = ?, physical_state = ?,
                signal_word = ?, quantity = ?, count_note = ?, hazard_statements = ?, ghs_pictograms = ?, ingredients = ?,
                photo_keys = ? WHERE id = ?`,
             existing.manufacturer ?? p.manufacturer,
@@ -88,6 +88,9 @@ export class VisitAgent extends Agent<Env, VisitState> {
             edited || existing.container_type !== "other" ? existing.container_type : p.containerType,
             edited || existing.container_material !== "unknown" ? existing.container_material : p.containerMaterial,
             existing.container_size ?? p.containerSize,
+            existing.inner_type ?? p.innerType,
+            edited ? existing.inner_count : maxOrNull(existing.inner_count, p.innerCount),
+            existing.inner_size ?? p.innerSize,
             existing.physical_state === "unknown" ? p.physicalState : existing.physical_state ?? p.physicalState,
             existing.signal_word === "none" ? p.signalWord : existing.signal_word ?? p.signalWord,
             edited ? existing.quantity : Math.max(existing.quantity, p.quantity),
@@ -103,11 +106,11 @@ export class VisitAgent extends Agent<Env, VisitState> {
           newIds.push(id);
           statements.push(this.db(
             `INSERT INTO products (id, visit_id, room, manufacturer, product_name, product_code, container_type,
-               container_material, container_size, quantity, count_note, physical_state, signal_word, hazard_statements,
-               ghs_pictograms, ingredients, photo_keys)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               container_material, container_size, inner_type, inner_count, inner_size, quantity, count_note,
+               physical_state, signal_word, hazard_statements, ghs_pictograms, ingredients, photo_keys)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             id, this.visitId, room, p.manufacturer, p.productName, p.productCode, p.containerType, p.containerMaterial,
-            p.containerSize,
+            p.containerSize, p.innerType, p.innerCount, p.innerSize,
             Math.max(1, p.quantity), p.countNote, p.physicalState, p.signalWord, JSON.stringify(p.hazardStatements), JSON.stringify(p.ghsPictograms),
             JSON.stringify(p.ingredients), JSON.stringify(keys),
           ));
@@ -276,7 +279,8 @@ export type VisitRow = {
 };
 export type ProductRow = {
   id: string; visit_id: string; room: string; manufacturer: string | null; product_name: string; product_code: string | null;
-  container_type: string; container_material: string; container_size: string | null; quantity: number; count_note: string | null; count_edited: number;
+  container_type: string; container_material: string; container_size: string | null;
+  inner_type: string | null; inner_count: number | null; inner_size: string | null; quantity: number; count_note: string | null; count_edited: number;
   physical_state: string | null; signal_word: string | null;
   hazard_statements: string; ghs_pictograms: string; ingredients: string; photo_keys: string;
   sds_status: string; sds_source: string | null; sds_url: string | null; sds_page_url: string | null;
@@ -287,8 +291,16 @@ type Attachment = { content: string; filename: string; content_type: string };
 
 const toKnown = (k: ProductRow): KnownProduct => ({
   id: k.id, manufacturer: k.manufacturer, productName: k.product_name, productCode: k.product_code,
-  containerType: k.container_type, containerSize: k.container_size, quantity: k.quantity,
+  containerType: k.container_type, containerSize: k.container_size, innerType: k.inner_type, quantity: k.quantity,
 });
+
+const maxOrNull = (a: number | null, b: number | null) => (a == null ? b : b == null ? a : Math.max(a, b));
+
+/** "~50 aerosol, 12 oz each" for a packed box/drum, or "" */
+export const contentsText = (p: Pick<ProductRow, "inner_type" | "inner_count" | "inner_size">) =>
+  p.inner_type
+    ? `contains ${p.inner_count != null ? `~${p.inner_count} ` : ""}${p.inner_type}${p.inner_size ? `, ${p.inner_size} each` : ""}`
+    : "";
 
 /** Merges a JSON array column with new values, without duplicates. */
 const union = (json: string, add: string[]) => JSON.stringify([...new Set([...JSON.parse(json), ...add])]);
@@ -327,6 +339,7 @@ function reportHtml(visit: VisitRow, products: ProductRow[], attached: Set<strin
       <td>${esc(p.room)}</td><td>${esc(p.manufacturer)}</td>
       <td><b>${esc(p.product_name)}</b><br><small>${esc(p.product_code)}</small></td>
       <td><b>${p.quantity} × ${esc(p.container_type)}</b>${p.container_size ? `<br><small>${esc(p.container_size)}</small>` : ""}${
+        p.inner_type ? `<br><small>${esc(contentsText(p))}</small>` : ""}${
         p.count_note ? `<br><small><i>${esc(p.count_note)}</i></small>` : ""}</td>
       <td>${manifest.code ? `<b>${p.quantity} ${manifest.code}</b>` : `<small>${esc(manifest.hint)}</small>`}</td>
       <td>${esc(p.signal_word)}</td>

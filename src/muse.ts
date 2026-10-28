@@ -38,6 +38,9 @@ export type ExtractedProduct = {
   containerType: ContainerType;
   containerMaterial: ContainerMaterial;
   containerSize: string | null;
+  innerType: ContainerType | null;
+  innerCount: number | null;
+  innerSize: string | null;
   countNote: string | null;
   physicalState: "solid" | "liquid" | "gas" | "aerosol" | "unknown";
   signalWord: "DANGER" | "WARNING" | "none";
@@ -62,6 +65,7 @@ export type KnownProduct = {
   productCode: string | null;
   containerType: string;
   containerSize: string | null;
+  innerType: string | null;
   quantity: number;
 };
 
@@ -69,7 +73,8 @@ const productSchema = {
   type: "object",
   additionalProperties: false,
   required: [
-    "manufacturer", "productName", "productCode", "containerType", "containerMaterial", "containerSize", "countNote", "physicalState",
+    "manufacturer", "productName", "productCode", "containerType", "containerMaterial", "containerSize",
+    "innerType", "innerCount", "innerSize", "countNote", "physicalState",
     "signalWord", "hazardStatements", "ghsPictograms", "ingredients", "quantity", "imageIndexes", "matchesProductId",
   ],
   properties: {
@@ -80,15 +85,31 @@ const productSchema = {
       type: "string",
       enum: CONTAINER_TYPES,
       description:
-        "the outer container this product is stored in: drum/barrel (30-55 gal), pail/bucket (1-5 gal), jug, bottle, " +
-        "can (metal, non-aerosol), aerosol (spray can), box/carton, bag/sack, tote (IBC), cylinder (gas), tube",
+        "the OUTER container that would be picked up: drum/barrel (30-55 gal), pail/bucket (1-5 gal), jug, bottle, " +
+        "can (metal, non-aerosol), aerosol (spray can), box/carton, bag/sack, tote (IBC), cylinder (gas), tube. " +
+        "If small items of this product are packed in a box or drum, this is \"box\"/\"drum\", not the items.",
     },
     containerMaterial: {
       type: "string",
       enum: CONTAINER_MATERIALS,
       description: "what the outer container is made of (fiber = cardboard/fiberboard); unknown if you can't tell",
     },
-    containerSize: { ...strOrNull, description: "capacity or net contents as printed, e.g. \"55 gal\", \"NET 2 QT (64 FL OZ)\"" },
+    containerSize: {
+      ...strOrNull,
+      description:
+        "capacity of the outer container, e.g. \"55 gal\", \"5 gal\", \"NET 2 QT (64 FL OZ)\". Not how full it is. " +
+        "If not printed but it's a standard size (55 gal drum, 5 gal pail), give it with \"~\", e.g. \"~55 gal\"",
+    },
+    innerType: {
+      type: ["string", "null"],
+      enum: [...CONTAINER_TYPES, null],
+      description: "only when the outer container is a box/drum packed with small items of this product: what the items are; else null",
+    },
+    innerCount: {
+      type: ["integer", "null"],
+      description: "only for a packed box/drum: estimated number of items inside (from what's visible, the box's printed count, or its size); else null",
+    },
+    innerSize: { ...strOrNull, description: "only for a packed box/drum: size of one item as printed, e.g. \"12 oz\"; else null" },
     countNote: {
       ...strOrNull,
       description: "only if the count is uncertain, say why, e.g. \"pallet partly hidden, at least 6\" or \"boxes stacked, 2 rows visible\"",
@@ -135,6 +156,10 @@ export async function extractProducts(env: Env, images: { mime: string; base64: 
             `Below are ${images.length} new photo(s) from one room, numbered from 0 in order. Photos may overlap. ` +
             `Identify every distinct product. Photos of the same product (e.g. front and back label) must be merged into ONE product. ` +
             `The same product in different container types or sizes (one drum and three jugs) is separate products. ` +
+            `Small items (bottles, cans, aerosols) are often packed into a box or drum: then the product is the box/drum ` +
+            `(containerType box/drum, quantity = number of boxes) with innerType/innerCount describing the items inside. ` +
+            `A photo of a packed box and a photo of one item's label from it are the SAME product. ` +
+            `Small items standing loose (not in a box) are counted individually with innerType null. ` +
             `For the waste pickup, the count and container type matter as much as the label: count carefully. ` +
             `Copy text exactly as printed; use null when something isn't visible. Don't guess.\n\n` + knownList,
         },

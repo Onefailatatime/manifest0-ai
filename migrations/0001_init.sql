@@ -24,6 +24,8 @@ CREATE INDEX photos_visit ON photos(visit_id);
 CREATE INDEX photos_batch ON photos(batch_id);
 
 -- One row per product per room. New photos of a product already listed update that row instead of adding one.
+-- The container fields describe what gets PICKED UP (counted on the manifest): e.g. 1 fiber box.
+-- If that box/drum is packed with small items of the product, the inner_* fields describe them: ~50 aerosol cans, 12 oz.
 CREATE TABLE products (
   id                 TEXT PRIMARY KEY,
   visit_id           TEXT NOT NULL REFERENCES visits(id),
@@ -33,7 +35,10 @@ CREATE TABLE products (
   product_code       TEXT,                      -- EPA reg no., product code, UPC, etc.
   container_type     TEXT NOT NULL DEFAULT 'other', -- drum | pail | jug | bottle | can | aerosol | box | bag | tote | cylinder | tube | other
   container_material TEXT NOT NULL DEFAULT 'unknown', -- metal | plastic | fiber | wood | glass | unknown (decides the manifest code)
-  container_size     TEXT,                      -- capacity as printed, e.g. "55 gal", "NET 2 QT"
+  container_size     TEXT,                      -- capacity, e.g. "55 gal", "5 gal", "NET 2 QT" (fill level doesn't matter)
+  inner_type         TEXT,                      -- packed box/drum only: bottle | can | aerosol | jug | tube | ...
+  inner_count        INTEGER,                   -- packed box/drum only: approx. number of items inside
+  inner_size         TEXT,                      -- packed box/drum only: size of one item, e.g. "12 oz"
   quantity           INTEGER NOT NULL DEFAULT 1, -- number of containers
   count_note         TEXT,                      -- why the count may be off, e.g. "pallet partly hidden"
   count_edited       INTEGER NOT NULL DEFAULT 0, -- 1 = technician corrected count/type; the agent won't overwrite it
