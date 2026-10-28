@@ -92,15 +92,15 @@ input::placeholder{color:var(--m0-text-muted)}
 .btn.wide{width:100%}
 
 /* status card while Manifest0 AI works */
-.status{display:flex;align-items:center;gap:12px;margin-top:12px;padding:12px;border:1px solid var(--m0-line);border-radius:14px}
-.status b{display:block;font-weight:600;font-size:15px}
+.status{display:flex;align-items:center;gap:12px;margin-top:12px;padding:14px;border:1px solid var(--m0-line);border-radius:14px;transition:opacity .5s}
+.status.fade{opacity:0}
+.st-title{display:block;font-weight:600;font-size:15px}
 .m0-loader{width:44px;height:44px;flex:0 0 44px}
 /* the diamond fills from the bottom like a tank, then the 0 traces itself, on a loop */
 /* the logo is the progress bar: the diamond fills up and the 0 draws itself, once, from 0 to 100% */
 .ld-fill{transition:transform 2.4s linear}
 .ld-zero{stroke-dasharray:100;transition:stroke-dashoffset 2.4s linear}
-.status .pct{font:500 12px var(--m0-font-mono);color:var(--m0-text-2);margin-left:6px}
-.feed{list-style:none;margin:8px 0 0;padding:0;font-size:12px;color:var(--m0-text-2)}
+.feed{list-style:none;margin:6px 0 0;padding:0;font-size:12px;color:var(--m0-text-2)}
 .feed li{display:flex;align-items:center;gap:6px;min-height:20px}
 .feed li i{font-size:14px;color:var(--m0-success)}
 .feed li:last-child{color:var(--m0-text)}
@@ -125,7 +125,13 @@ input::placeholder{color:var(--m0-text-muted)}
 .row .t{flex:1;min-width:0}
 .row .t b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row .t span{display:block;font-size:var(--m0-fs-xs);color:var(--m0-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chips{display:flex;gap:4px;align-items:center}
+.chips{display:flex;gap:6px;align-items:center;flex:0 0 auto}
+.mini-ghs{width:22px;height:22px;display:block;margin:0 -2px}
+.tag-s{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 7px;border-radius:999px;font:600 11px var(--m0-font-sans);letter-spacing:.02em;white-space:nowrap}
+.tag-s i{font-size:12px}
+.tag-s.ok{background:var(--m0-success-bg);color:var(--m0-success)}
+.tag-s.wait{background:var(--m0-surface-2);color:var(--m0-text-2)}
+.tag-s.bad{background:var(--m0-error-bg);color:var(--m0-error)}
 .chip{font:500 11px var(--m0-font-mono);border-radius:5px;padding:2px 6px;white-space:nowrap;background:var(--m0-success-bg);color:var(--m0-success)}
 .chip.wait{background:var(--m0-surface-2);color:var(--m0-text-2)}
 .chip.hot{background:var(--m0-hot-bg);color:var(--m0-hot)}
@@ -327,12 +333,12 @@ body.out #app,body.out .sticky{display:none}
         <svg class="m0-loader" viewBox="0 0 60 60" aria-hidden="true">
           <defs><clipPath id="ldDiamond"><rect x="12" y="12" width="36" height="36" rx="4" transform="rotate(45 30 30)"/></clipPath></defs>
           <rect width="60" height="60" rx="13" fill="#041D3E"/>
-          <rect x="12" y="12" width="36" height="36" rx="4" transform="rotate(45 30 30)" fill="#F3BF2B" opacity=".22"/>
-          <g clip-path="url(#ldDiamond)"><rect class="ld-fill" x="0" y="0" width="60" height="60" fill="#F3BF2B" style="transform:translateY(60px)"/></g>
+          <rect x="12" y="12" width="36" height="36" rx="4" transform="rotate(45 30 30)" fill="#FFFFFF" opacity=".12"/>
+          <g clip-path="url(#ldDiamond)"><rect class="ld-fill" x="0" y="0" width="60" height="60" fill="#F3BF2B" style="transform:translateY(56px)"/></g>
           <ellipse cx="30" cy="30" rx="7.5" ry="10" fill="none" stroke="#041D3E" stroke-opacity=".18" stroke-width="4.5"/>
           <ellipse class="ld-zero" cx="30" cy="30" rx="7.5" ry="10" fill="none" stroke="#041D3E" stroke-width="4.5" stroke-linecap="round" pathLength="100" style="stroke-dashoffset:100"/>
         </svg>
-        <div style="flex:1;min-width:0"><b><span id="statusText"></span><span class="pct" id="statusPct"></span></b><ul class="feed" id="feed"></ul></div>
+        <div style="flex:1;min-width:0"><b class="st-title" id="statusText"></b><ul class="feed" id="feed"></ul></div>
       </div>
       <div class="banner" id="banner" hidden></div>
       <div id="rows"></div>
@@ -564,7 +570,9 @@ const GHS=[
 function ghsOf(p){const seen=new Set();for(const t of JSON.parse(p.ghs_pictograms||'[]')){const g=GHS.find(g=>g.match.test(String(t).toLowerCase()));if(g)seen.add(g)}
  return GHS.filter(g=>seen.has(g))}
 /* Official GHS pictograms (UNECE, public domain, via Wikimedia Commons) in /ghs/. */
-const ghsBadge=g=>`<button class="ghs" type="button" title="${g.name} (${g.code})" aria-label="${g.name}" data-ghs="${g.name}"><img src="/ghs/${g.code}.svg" alt=""></button>`;
+const ghsBadge=g=>`<button class="ghs" type="button" title="${g.name} (${g.code})" aria-label="${g.name}" data-ghs="${g.name}"><img src="/ghs/${g.code}.svg" alt="" onerror="retryImg(this)"></button>`;
+/* A picture that fails to load (e.g. a blip in the connection) tries again, up to 3 times. */
+window.retryImg=img=>{const n=+(img.dataset.tries||0);if(n>=3)return;img.dataset.tries=n+1;setTimeout(()=>{img.src=img.src.split('?')[0]+'?r='+(n+1)},1000*(n+1))};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-ghs]');if(b)toast(b.dataset.ghs)});
 
 /* ---------- rendering ---------- */
@@ -581,16 +589,17 @@ const hot=p=>!!p.hazard_class||p.signal_word==='DANGER';
 const contents=p=>p.inner_type||p.inner_count!=null?`${p.inner_count!=null?'~'+p.inner_count+' ':''}${p.inner_type?p.inner_type+'s':'items'}`:'';
 const shortSize=s=>s?s.split(/[(\n]/)[0].trim():'';
 const summary=p=>[`${p.quantity} ${p.container_type==='other'?'container':p.container_type}${p.quantity>1?'s':''}`,contents(p),!contents(p)&&shortSize(p.container_size)].filter(Boolean).join(' · ');
-const classChip=p=>p.hazard_class?`<span class="chip hot">CL ${esc(p.hazard_class.split(/\s/)[0])}</span>`:'';
-const sdsChip=p=>({pending:'<span class="chip wait">SDS…</span>',found:'<span class="chip">SDS</span>',page_only:'<span class="chip wait">SDS page</span>',not_found:'<span class="chip bad">No SDS</span>'}[p.sds_status]||'');
+const hazardPics=p=>ghsOf(p).map(g=>`<img class="mini-ghs" src="/ghs/${g.code}.svg" alt="${g.name}" title="${g.name}" onerror="retryImg(this)">`).join('');
+const sdsChip=p=>({pending:'<span class="tag-s wait">SDS…</span>',found:'<span class="tag-s ok"><i class="ti ti-check"></i>SDS</span>',page_only:'<span class="tag-s wait">SDS page</span>',not_found:'<span class="tag-s bad">No SDS</span>'}[p.sds_status]||'');
 
 /* Progress for the logo, 0-100 and never going backwards. Uploading 0-10, reading labels 10-50 (one Muse call, so it
    eases forward with time), SDS 50-95 (by how many are done), sending 95-100. */
 let job=null;
 function progress(reading,sds,sending){
  const now=Date.now();
- if(!job){const starts=(data?data.log:[]).filter(l=>/: reading \d+ photo|Finishing/.test(l)).map(l=>Date.parse(l.slice(0,24)));
-  const last=starts.at(-1);job={t0:last&&now-last<15*60000?last:now,pct:0,sdsMax:0}}
+ if(!job){let t0=now;   // started here (upload) = now; page reopened mid-job = when the current work began
+  if(!uploading){const last=(data?data.log:[]).filter(l=>/: reading \d+ photo|Finishing/.test(l)).map(l=>Date.parse(l.slice(0,24))).at(-1);if(last&&now-last<15*60000)t0=last}
+  job={t0,pct:0,sdsMax:0}}
  const ease=(since,ms)=>1-Math.exp(-(now-since)/ms);
  let p;
  if(uploading)p=10*ease(job.t0,6000);
@@ -611,6 +620,14 @@ function friendly(line){const t=line.replace(/^\S+ /,''),m=(re)=>t.match(re);let
  if(m(/^Finishing/))return 'Getting the report ready';
  return null}
 
+/* Draws the status card. The logo fills by area (a diamond's area grows fastest in the middle), so 50% looks half full. */
+function showStatus(title,pct,steps,done){
+ const st=$('#status');st.hidden=false;st.classList.toggle('done',done);st.classList.remove('fade');
+ $('#statusText').textContent=title;
+ const f=pct/100,h=f<=.5?Math.sqrt(f/2):1-Math.sqrt((1-f)/2);   // share of the diamond's height that holds f of its area
+ $('.ld-fill').style.transform=`translateY(${55.5-51*h}px)`;$('.ld-zero').style.strokeDashoffset=100-pct;
+ $('#feed').innerHTML=steps.map(([t,ok])=>`<li><i class="ti ti-${ok?'check':'point'}"></i>${esc(t)}</li>`).join('')}
+
 function render(){
  const v=data&&data.visit,open=isOpen(),walking=!!visitId,signedIn=!!me;
  $('#signin').hidden=signedIn;document.body.classList.toggle('out',!signedIn);$('#setup').hidden=!signedIn||walking;$('#walk').hidden=!signedIn||!walking;
@@ -621,15 +638,17 @@ function render(){
  $('#roomTitle').textContent=room||'Choose a room';
  $('#accountBtn').innerHTML=me?esc(me[0].toUpperCase()):'<i class="ti ti-user"></i>';
 
- // status card: stage title, real progress (0-100%) and the latest steps from the agent's log
+ // status card: stage title, real progress (0-100%) and the steps the agent took since this job began
  const reading=data?data.photos.pending:0,sds=sdsPending(),sending=v&&v.status==='finishing';
  const st=uploading?'Uploading photos':reading?'Reading the labels':sds?'Finding SDS sheets':sending?'Sending the report':'';
- $('#status').hidden=!st;
- if(st){const pct=progress(reading,sds,sending);$('#statusText').textContent=st+(sds&&job.sdsMax>1?` · ${job.sdsMax-sds+1} of ${job.sdsMax}`:'');$('#statusPct').textContent=pct+'%';
-  $('.ld-fill').style.transform=`translateY(${60*(1-pct/100)}px)`;$('.ld-zero').style.strokeDashoffset=100-pct;
-  const steps=(data?data.log:[]).filter(l=>Date.parse(l.slice(0,24))>=job.t0-1000).map(friendly).filter((t,i,a)=>t&&t!==a[i-1]).slice(-3);
-  $('#feed').innerHTML=steps.map((t,i)=>`<li>${i<steps.length-1?'<i class="ti ti-check"></i>':'<i class="ti ti-point"></i>'}${esc(t)}</li>`).join('')}
- else job=null;
+ const steps=()=>[...new Set((data?data.log:[]).filter(l=>Date.parse(l.slice(0,24))>=job.t0-1000).map(friendly).filter(Boolean))];
+ if(st){const pct=progress(reading,sds,sending),list=steps().slice(-3);
+  showStatus(st+(sds&&job.sdsMax>1?` · ${job.sdsMax-sds+1} of ${job.sdsMax}`:''),pct,list.map((t,i)=>[t,i<list.length-1]),false)}
+ else if(job&&!job.done){   // just finished: fill to 100%, say what happened, then fade away
+  job.done=true;const added=steps().map(t=>t.match(/^Added (\d+)/)).filter(Boolean).reduce((n,m)=>n+ +m[1],0);
+  showStatus(added?`Done · ${plural(added,'product')} added`:'Done · nothing new found',100,steps().slice(-3).map(t=>[t,true]),true);
+  const j=job;setTimeout(()=>{$('#status').classList.add('fade');setTimeout(()=>{if(job===j){job=null;$('#status').hidden=true;$('#status').classList.remove('fade')}},500)},2500)}
+ else if(!job)$('#status').hidden=true;
 
  // result banner
  const saved=data&&data.log.map(l=>l.match(/Report: (\/api\/files\/\S+)/)).filter(Boolean).at(-1),bn=$('#banner');
@@ -646,7 +665,7 @@ function render(){
   products.forEach((p,i)=>{if(rooms>1&&p.room!==r){r=p.room;html+=`<div class="room">${esc(r)}</div>`}
    html+=`<div class="item"><button class="row" data-id="${p.id}"><span class="ic num${hot(p)?' hot':''}">${i+1}</span>
     <span class="t"><b>${esc(p.product_name)}</b><span>${esc(summary(p))}</span></span>
-    <span class="chips">${p.confirmed?'<i class="ti ti-circle-check ok-mark" aria-label="Confirmed"></i>':''}${classChip(p)}${sdsChip(p)}</span></button>
+    <span class="chips">${p.confirmed?'<i class="ti ti-circle-check ok-mark" aria-label="Confirmed"></i>':''}${hazardPics(p)}${sdsChip(p)}</span></button>
     ${open?`<button class="del" data-del="${p.id}" aria-label="Delete ${esc(p.product_name)}"><i class="ti ti-trash"></i></button>`:''}</div>`});
   $('#rows').innerHTML=html||(open?'<div class="empty">Snap the first label to start the list.</div>':'')}
  update()}
