@@ -472,8 +472,7 @@ $('#mainBtn').onclick=()=>{if(mode==='signin')signIn();else if(mode==='start')st
 /* ---------- product sheet ---------- */
 $('#rows').addEventListener('click',e=>{
  const d=e.target.closest('[data-del]');
- if(d){const p=data.products.find(x=>x.id===d.dataset.del);
-  patch(p.id,{removed:true}).then(ok=>ok&&toast('Deleted '+p.product_name,'Undo',()=>patch(p.id,{removed:false},'Restored')));return}
+ if(d){confirmDelete(data.products.find(x=>x.id===d.dataset.del));return}
  const b=e.target.closest('.row');if(b)detail(b.dataset.id)});
 function detail(id){
  const p=data.products.find(x=>x.id===id);if(!p)return;const open=isOpen();
@@ -511,8 +510,14 @@ function detail(id){
  const field=(sel,key,num)=>{const el=$(sel);if(!el)return;el.addEventListener('change',async()=>{
   const val=num?(el.value===''?null:Number(el.value)):el.value;if(await patch(id,{[key]:val},'Saved'))refreshSheet(id)})};
  field('#eQty','quantity',true);field('#eType','containerType');field('#eMat','containerMaterial');field('#eInner','innerCount',true);
- $('#dRm').onclick=async()=>{closeSheet();if(await patch(id,{removed:true}))toast("Deleted "+p.product_name,"Undo",()=>patch(id,{removed:false},'Restored'))};
+ $('#dRm').onclick=()=>confirmDelete(p);
  $('#dOk').onclick=async()=>{const c=!p.confirmed;closeSheet();await patch(id,{confirmed:c},c?'Confirmed':'Marked as needs review')}}
+/* Deleting a product always asks first. */
+function confirmDelete(p){
+ openSheet('Delete this item?',`<p style="font-size:15px"><b>${esc(p.product_name)}</b> (${esc(summary(p))}) will be taken off the inventory and left out of the report.</p>
+  <div class="grid2" style="margin-top:18px"><button class="btn" id="delNo">Cancel</button><button class="btn danger" id="delYes"><i class="ti ti-trash"></i> Yes, delete</button></div>`);
+ $('#delNo').onclick=closeSheet;
+ $('#delYes').onclick=async()=>{closeSheet();if(await patch(p.id,{removed:true}))toast('Deleted '+p.product_name,'Undo',()=>patch(p.id,{removed:false},'Restored'))}}
 function refreshSheet(id){if(sheetFor!==id)return;const y=$('#sheet').scrollTop;detail(id);$('#sheet').scrollTop=y}
 
 load();
