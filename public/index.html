@@ -238,7 +238,8 @@ body.out #app,body.out .sticky{display:none}
           <div class="go"><span id="trayText"></span><button class="btn dark" id="readBtn"><i class="ti ti-send"></i> Read photos</button></div>
         </div>
       </div>
-      <input class="sr" type="file" id="photoCam" accept="image/*" capture="environment">
+      <!-- No "capture" attribute: the phone asks Take Photo or Photo Library. -->
+      <input class="sr" type="file" id="photoCam" accept="image/*" multiple>
       <div class="status" id="status" hidden><i class="ti ti-loader-2 spin"></i><span id="statusText"></span></div>
       <div class="banner" id="banner" hidden></div>
       <div id="rows"></div>
