@@ -221,6 +221,16 @@ body.out #app,body.out .sticky{display:none}
 .demo-note{text-align:center;font-size:var(--m0-fs-xs);opacity:.55;margin-top:14px}
 @media (min-width:600px){.signin-in{justify-content:center}}
 
+/* GHS hazard pictograms (official images) in the product page */
+.ghs-row{display:flex;flex-wrap:wrap;gap:8px;padding:2px 0}
+.ghs{width:46px;height:46px;padding:0;border:0;background:none}
+.ghs img{width:100%;height:100%;display:block}
+/* SDS viewer */
+.pdf{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.pdf canvas{display:block;border:1px solid var(--m0-line);border-radius:6px;background:#fff}
+.pdf .status{padding:40px 0;text-align:center;color:var(--m0-text-2);font-size:var(--m0-fs-sm)}
+.pdf a{color:var(--m0-accent)}
+
 /* room dropdown */
 .menu{position:absolute;right:var(--m0-gutter);left:var(--m0-gutter);top:calc(100% + 4px);z-index:30;background:var(--m0-bg);color:var(--m0-text);border:1px solid var(--m0-line);border-radius:var(--m0-radius-lg);box-shadow:var(--m0-shadow-2);padding:6px;max-height:60vh;overflow:auto}
 .menu .opt{display:flex;align-items:center;gap:10px;width:100%;min-height:var(--m0-tap);padding:0 10px;border:0;border-radius:var(--m0-radius-md);background:none;text-align:left;font-size:var(--m0-fs-body)}
