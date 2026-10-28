@@ -125,8 +125,9 @@ input::placeholder{color:var(--m0-text-muted)}
 .row .t{flex:1;min-width:0}
 .row .t b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row .t span{display:block;font-size:var(--m0-fs-xs);color:var(--m0-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chips{display:flex;gap:6px;align-items:center;flex:0 0 auto}
-.mini-ghs{width:22px;height:22px;display:block;margin:0 -2px}
+.chips{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:0 0 auto}
+.chip-row{display:flex;align-items:center;gap:4px}
+.mini-ghs{width:22px;height:22px;display:block}
 .tag-s{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 7px;border-radius:999px;font:600 11px var(--m0-font-sans);letter-spacing:.02em;white-space:nowrap}
 .tag-s i{font-size:12px}
 .tag-s.ok{background:var(--m0-success-bg);color:var(--m0-success)}
@@ -665,7 +666,7 @@ function render(){
   products.forEach((p,i)=>{if(rooms>1&&p.room!==r){r=p.room;html+=`<div class="room">${esc(r)}</div>`}
    html+=`<div class="item"><button class="row" data-id="${p.id}"><span class="ic num${hot(p)?' hot':''}">${i+1}</span>
     <span class="t"><b>${esc(p.product_name)}</b><span>${esc(summary(p))}</span></span>
-    <span class="chips">${p.confirmed?'<i class="ti ti-circle-check ok-mark" aria-label="Confirmed"></i>':''}${hazardPics(p)}${sdsChip(p)}</span></button>
+    <span class="chips"><span class="chip-row">${p.confirmed?'<i class="ti ti-circle-check ok-mark" aria-label="Confirmed"></i>':''}${sdsChip(p)}</span>${ghsOf(p).length?`<span class="chip-row">${hazardPics(p)}</span>`:''}</span></button>
     ${open?`<button class="del" data-del="${p.id}" aria-label="Delete ${esc(p.product_name)}"><i class="ti ti-trash"></i></button>`:''}</div>`});
   $('#rows').innerHTML=html||(open?'<div class="empty">Snap the first label to start the list.</div>':'')}
  update()}
