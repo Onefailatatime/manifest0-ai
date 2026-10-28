@@ -89,6 +89,7 @@ input::placeholder{color:var(--m0-text-muted)}
 .row{display:flex;align-items:center;gap:12px;width:100%;padding:11px 0;border:0;border-bottom:1px solid var(--m0-line);background:none;text-align:left}
 .row:last-child{border-bottom:0}
 .ic{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;flex:0 0 36px;font-size:19px;background:var(--m0-info-bg);color:var(--m0-info)}
+.ic.num{font-weight:600;font-size:var(--m0-fs-sm);font-family:var(--m0-font-mono)}
 .ic.hot{background:var(--m0-hot-bg);color:var(--m0-hot)}
 .row .t{flex:1;min-width:0}
 .row .t b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -137,6 +138,30 @@ dd small{display:block;font-weight:400;color:var(--m0-text-2)}
 .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translate(-50%,20px);z-index:60;background:var(--m0-text);color:var(--m0-bg);padding:10px 14px;border-radius:var(--m0-radius-md);font-size:var(--m0-fs-sm);font-weight:500;opacity:0;pointer-events:none;transition:all .2s;max-width:calc(100% - 32px);display:flex;align-items:center;gap:12px}
 body.lock .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
 .toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+/* room dropdown */
+.top{position:relative}
+.link i{font-size:14px;vertical-align:-2px}
+.menu{position:absolute;right:var(--m0-gutter);left:var(--m0-gutter);top:calc(100% - 8px);z-index:30;background:var(--m0-bg);color:var(--m0-text);border:1px solid var(--m0-line);border-radius:var(--m0-radius-lg);box-shadow:var(--m0-shadow-2);padding:6px;max-height:60vh;overflow:auto}
+.menu .opt{display:flex;align-items:center;gap:10px;width:100%;min-height:var(--m0-tap);padding:0 10px;border:0;border-radius:var(--m0-radius-md);background:none;text-align:left;font-size:var(--m0-fs-body)}
+.menu .opt:active,.menu .opt.cur{background:var(--m0-surface-2)}
+.menu .opt span{flex:1}
+.menu .opt small{color:var(--m0-text-2);font-size:var(--m0-fs-xs)}
+.menu .opt i{color:var(--m0-success);font-size:18px}
+.menu-new{display:flex;gap:6px;padding:6px 4px 2px;border-top:1px solid var(--m0-line);margin-top:4px}
+.menu-new .field{margin:0;height:var(--m0-tap)}
+.menu-new .btn{flex:0 0 var(--m0-tap);padding:0;font-size:18px}
+
+/* account sheet */
+.who{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.avatar{width:48px;height:48px;border-radius:50%;background:var(--m0-primary);color:var(--m0-on-primary);display:grid;place-items:center;font-weight:600;font-size:18px;flex:0 0 48px}
+[data-theme=dark] .avatar{background:var(--m0-hazard);color:var(--m0-on-hazard)}
+.who b{display:block;font-weight:600;overflow-wrap:anywhere}
+.who span{font-size:var(--m0-fs-xs);color:var(--m0-text-2)}
+.set-lbl{font-size:var(--m0-fs-sm);font-weight:500;margin-bottom:8px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:var(--m0-radius-md);background:var(--m0-surface-2);margin-bottom:22px}
+.seg button{min-height:40px;border:0;border-radius:8px;background:none;font-size:var(--m0-fs-sm);font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px}
+.seg button[aria-pressed=true]{background:var(--m0-bg);box-shadow:var(--m0-shadow-1)}
+
 .toast button{background:none;border:0;color:inherit;font-weight:700;text-decoration:underline;min-height:var(--m0-tap);padding:0 4px}
 </style>
 </head>
@@ -145,13 +170,26 @@ body.lock .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
   <header class="top">
     <div class="bar">
       <button class="mark" id="markBtn">Manifest0<b>-Ai</b></button>
-      <button class="icon-btn" id="themeBtn" aria-label="Switch theme"><i class="ti ti-moon"></i></button>
+      <button class="icon-btn" id="accountBtn" aria-label="Account and settings"><i class="ti ti-user-circle"></i></button>
     </div>
     <div class="site" id="siteLine">New walk</div>
-    <div class="where"><h1 id="roomTitle">Start a site walk</h1><button class="link" id="roomBtn" hidden>Change room</button></div>
+    <div class="where"><h1 id="roomTitle">Start a site walk</h1><button class="link" id="roomBtn" aria-haspopup="true" aria-expanded="false" hidden>Change room <i class="ti ti-chevron-down"></i></button></div>
+    <div class="menu" id="roomMenu" hidden>
+      <div id="roomList"></div>
+      <div class="menu-new"><input id="newRoom" class="field" type="text" autocomplete="off" placeholder="New room"><button class="btn dark" id="addRoom" aria-label="Add room"><i class="ti ti-plus"></i></button></div>
+    </div>
   </header>
 
   <main>
+    <!-- demo sign-in: only remembers the email on this phone. Real sign-in comes later. -->
+    <section id="signin" hidden>
+      <p class="intro">Sign in with your work email. The reports you send come from and reply to this address.</p>
+      <label class="lbl" for="me">Email</label>
+      <input id="me" class="field" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com">
+      <div class="hint">Demo sign-in: no password or code yet.</div>
+      <div class="err" id="signinErr" role="alert" hidden></div>
+    </section>
+
     <!-- before the walk starts -->
     <section id="setup">
       <p class="intro">Snap each label room by room. Muse builds the inventory, finds every SDS and emails the report to your client.</p>
@@ -159,8 +197,6 @@ body.lock .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
       <input id="site" class="field" type="text" autocomplete="off" placeholder="Riverside Clinic">
       <label class="lbl" for="room">First room</label>
       <input id="room" class="field" type="text" autocomplete="off" placeholder="Janitor closet">
-      <label class="lbl" for="me">Your email</label>
-      <input id="me" class="field" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com">
       <label class="lbl" for="client">Client email</label>
       <input id="client" class="field" type="email" inputmode="email" multiple placeholder="client@site.com">
       <div class="hint">You get a copy. Separate several client addresses with commas.</div>
@@ -179,7 +215,6 @@ body.lock .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
       <input class="sr" type="file" id="photoCam" accept="image/*" capture="environment">
       <div class="status" id="status" hidden><i class="ti ti-loader-2 spin"></i><span id="statusText"></span></div>
       <div class="banner" id="banner" hidden></div>
-      <div class="count" id="count"></div>
       <div id="rows"></div>
     </section>
   </main>
@@ -210,11 +245,11 @@ let tt;function toast(msg,act,fn){$('#toastMsg').textContent=msg;const a=$('#toa
  $('#toast').classList.add('show');clearTimeout(tt);tt=setTimeout(hideT,act?5000:2800)}
 function hideT(){$('#toast').classList.remove('show')}
 
-/* ---------- theme ---------- */
-function syncTheme(){const d=root.getAttribute('data-theme')==='dark';$('#themeBtn').innerHTML=`<i class="ti ti-${d?'sun':'moon'}"></i>`;
- document.querySelector('meta[name=theme-color]').content=d?'#252C32':'#041D3E'}
-$('#themeBtn').onclick=()=>{const n=root.getAttribute('data-theme')==='dark'?'light':'dark';root.setAttribute('data-theme',n);store.set('m0-theme',n);syncTheme()};
-syncTheme();
+/* ---------- theme: light, dark, or follow the phone (system) ---------- */
+const sysDark=matchMedia('(prefers-color-scheme: dark)');
+function applyTheme(){const pick=store.get('m0-theme')||'system',t=pick==='system'?(sysDark.matches?'dark':'light'):pick;
+ root.setAttribute('data-theme',t);document.querySelector('meta[name=theme-color]').content=t==='dark'?'#252C32':'#041D3E'}
+sysDark.addEventListener('change',applyTheme);applyTheme();
 $('#markBtn').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
 
 /* ---------- bottom sheet ---------- */
@@ -236,33 +271,54 @@ let tray=[], uid=0, uploading=0, pollTimer=null, lastRows='';
 const isOpen=()=>!data||data.visit.status==='open';
 const sdsPending=()=>data?data.products.filter(p=>p.sds_status==='pending').length:0;
 const busy=()=>uploading>0||!!data&&(data.photos.pending>0||sdsPending()>0||data.visit.status==='finishing');
-$('#me').value=store.get('m0-me')||'';
+let me=store.get('m0-me')||'';
 
 async function api(path,opts){const r=await fetch(path,opts);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong ('+r.status+')');return j}
 async function load(){if(!visitId)return render();
  try{data=await api('/api/visits/'+visitId)}catch(e){toast(e.message);return}
  render();clearTimeout(pollTimer);if(busy())pollTimer=setTimeout(load,2500)}
 
+/* ---------- demo sign-in and account ---------- */
+function signIn(){const v=$('#me').value.trim();const ok=RE.test(v);
+ $('#me').setAttribute('aria-invalid',!ok);$('#signinErr').hidden=ok;$('#signinErr').textContent=ok?'':'Enter your work email.';
+ if(!ok)return;me=v;store.set('m0-me',me);render()}
+$('#me').addEventListener('keydown',e=>{if(e.key==='Enter')signIn()});
+function account(){
+ const pick=store.get('m0-theme')||'system',seg=(v,icon,label)=>`<button data-theme-pick="${v}" aria-pressed="${pick===v}"><i class="ti ti-${icon}"></i>${label}</button>`;
+ openSheet('Account',`${me?`<div class="who"><div class="avatar">${esc(me[0].toUpperCase())}</div><div><b>${esc(me)}</b><span>Reports are sent from and reply to this address</span></div></div>`:''}
+  <div class="set-lbl">Appearance</div>
+  <div class="seg">${seg('light','sun','Light')}${seg('dark','moon','Dark')}${seg('system','device-mobile','Auto')}</div>
+  ${me?`<button class="btn wide" id="signOut"><i class="ti ti-logout"></i> Sign out</button>`:''}`);
+ document.querySelectorAll('[data-theme-pick]').forEach(b=>b.onclick=()=>{store.set('m0-theme',b.dataset.themePick);applyTheme();
+  document.querySelectorAll('[data-theme-pick]').forEach(x=>x.setAttribute('aria-pressed',x===b))});
+ if($('#signOut'))$('#signOut').onclick=()=>{closeSheet();me='';store.set('m0-me','');$('#me').value='';newWalk()}}
+$('#accountBtn').onclick=account;
+
 /* ---------- start the walk ---------- */
 async function startWalk(){
- const me=$('#me').value.trim(),clients=emails($('#client').value),r=$('#room').value.trim();
- const bad=!RE.test(me)?'Enter your email.':!clients.length?'Enter the client email.':clients.find(e=>!RE.test(e))?'Check this address: '+clients.find(e=>!RE.test(e)):!r?'Enter the first room.':'';
- $('#me').setAttribute('aria-invalid',!RE.test(me));$('#client').setAttribute('aria-invalid',!clients.length||clients.some(e=>!RE.test(e)));$('#room').setAttribute('aria-invalid',!r);
+ const clients=emails($('#client').value),r=$('#room').value.trim();
+ const bad=!clients.length?'Enter the client email.':clients.find(e=>!RE.test(e))?'Check this address: '+clients.find(e=>!RE.test(e)):!r?'Enter the first room.':'';
+ $('#client').setAttribute('aria-invalid',!clients.length||clients.some(e=>!RE.test(e)));$('#room').setAttribute('aria-invalid',!r);
  $('#setupErr').hidden=!bad;$('#setupErr').textContent=bad;if(bad)return;
  try{const res=await api('/api/visits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recipients:[me,...clients],siteName:$('#site').value})});
-  visitId=res.visitId;store.set('m0-me',me);setRoom(r);history.replaceState(null,'','?visit='+visitId);await load()}
+  visitId=res.visitId;history.replaceState(null,'','?visit='+visitId);setRoom(r);await load()}
  catch(e){toast(e.message)}}
 
-function setRoom(r){room=r;store.set('m0-room',r);render()}
-function changeRoom(){
- const rooms=data?[...new Set(data.products.map(p=>p.room))].filter(x=>x!==room):[];
- openSheet('Which room?',`<input id="newRoom" class="field" type="text" autocomplete="off" placeholder="Room name" value="">
-  ${rooms.length?`<div class="chiprow">${rooms.map(r=>`<button data-room="${esc(r)}">${esc(r)}</button>`).join('')}</div>`:''}
-  <button class="btn dark wide" id="roomOk" style="margin-top:14px">Go to room</button>`);
- const go=v=>{v=v.trim();if(!v){$('#newRoom').focus();return}closeSheet();setRoom(v);toast('Now in '+v)};
- $('#roomOk').onclick=()=>go($('#newRoom').value);$('#newRoom').addEventListener('keydown',e=>{if(e.key==='Enter')go($('#newRoom').value)});
- document.querySelectorAll('[data-room]').forEach(b=>b.onclick=()=>go(b.dataset.room));setTimeout(()=>$('#newRoom').focus(),300)}
-$('#roomBtn').onclick=changeRoom;
+/* ---------- rooms: dropdown of every room in this walk, plus "new room" ---------- */
+const roomsKey=()=>'m0-rooms-'+visitId;
+function allRooms(){let saved=[];try{saved=JSON.parse(store.get(roomsKey())||'[]')}catch(e){}
+ return [...new Set([...saved,...(data&&data.rooms||[]),...(data?data.products.map(p=>p.room):[]),room].filter(Boolean))]}
+function setRoom(r){room=r;store.set('m0-room',r);if(visitId)store.set(roomsKey(),JSON.stringify(allRooms()));renderTray();render()}
+function toggleRooms(show){const m=$('#roomMenu');show=show??m.hidden;m.hidden=!show;$('#roomBtn').setAttribute('aria-expanded',show);
+ if(!show)return;
+ $('#roomList').innerHTML=allRooms().map(r=>{const n=data?data.products.filter(p=>p.room===r).length:0;
+  return `<button class="opt${r===room?' cur':''}" data-room="${esc(r)}"><span>${esc(r)}</span><small>${plural(n,'product')}</small>${r===room?'<i class="ti ti-check"></i>':''}</button>`}).join('');
+ $('#newRoom').value=''}
+$('#roomBtn').onclick=e=>{e.stopPropagation();toggleRooms()};
+$('#roomList').addEventListener('click',e=>{const b=e.target.closest('[data-room]');if(!b)return;toggleRooms(false);if(b.dataset.room!==room){setRoom(b.dataset.room);toast('Now in '+room)}});
+const addRoom=()=>{const v=$('#newRoom').value.trim();if(!v){$('#newRoom').focus();return}toggleRooms(false);setRoom(v);toast('Now in '+v)};
+$('#addRoom').onclick=addRoom;$('#newRoom').addEventListener('keydown',e=>{if(e.key==='Enter')addRoom()});
+document.addEventListener('click',e=>{if(!$('#roomMenu').hidden&&!e.target.closest('#roomMenu'))toggleRooms(false)});
 
 /* ---------- photos ---------- */
 $('#snapBtn').onclick=()=>$('#photoCam').click();
@@ -318,7 +374,6 @@ function newWalk(){
  renderTray();render();window.scrollTo({top:0})}
 
 /* ---------- rendering ---------- */
-const ICON={drum:'barrel',tote:'barrel',pail:'bucket',jug:'bottle',bottle:'bottle',can:'spray',aerosol:'spray',box:'box',bag:'shopping-bag',cylinder:'cylinder',tube:'droplet',other:'flask'};
 const TYPES=['drum','pail','jug','bottle','can','aerosol','box','bag','tote','cylinder','tube','other'];
 const MATERIALS=['metal','plastic','fiber','wood','glass','unknown'];
 const hot=p=>!!p.hazard_class||p.signal_word==='DANGER';
@@ -329,11 +384,11 @@ const classChip=p=>p.hazard_class?`<span class="chip hot">CL ${esc(p.hazard_clas
 const sdsChip=p=>({pending:'<span class="chip wait">SDS…</span>',found:'<span class="chip">SDS</span>',page_only:'<span class="chip wait">SDS page</span>',not_found:'<span class="chip bad">No SDS</span>'}[p.sds_status]||'');
 
 function render(){
- const v=data&&data.visit,open=isOpen(),walking=!!visitId;
- $('#setup').hidden=walking;$('#walk').hidden=!walking;
- $('#siteLine').textContent=walking?(v&&v.site_name)||'Site walk':'New walk';
- $('#roomTitle').textContent=walking?(open?room||'Choose a room':(v.status==='done'?(v.email_sent_at?'Report sent':'Report saved'):v.status==='failed'?'Report not sent':'Sending report')):'Start a site walk';
- $('#roomBtn').hidden=!walking||!open;$('#capture').hidden=!walking||!open;
+ const v=data&&data.visit,open=isOpen(),walking=!!visitId,signedIn=!!me;
+ $('#signin').hidden=signedIn;$('#setup').hidden=!signedIn||walking;$('#walk').hidden=!signedIn||!walking;
+ $('#siteLine').textContent=!signedIn?'Welcome':walking?(v&&v.site_name)||'Site walk':'New walk';
+ $('#roomTitle').textContent=!signedIn?'Sign in':walking?(open?room||'Choose a room':(v.status==='done'?(v.email_sent_at?'Report sent':'Report saved'):v.status==='failed'?'Report not sent':'Sending report')):'Start a site walk';
+ $('#roomBtn').hidden=!signedIn||!walking||!open;$('#capture').hidden=!walking||!open;
  if(walking&&open&&!room)$('#roomTitle').textContent='Choose a room';
 
  // status line
@@ -351,23 +406,23 @@ function render(){
 
  // inventory
  const products=data?data.products:[];
- $('#count').innerHTML=walking?`<span>${plural(products.length,'product')}</span>${products.length&&open?'<span>Tap to check</span>':''}`:'';
  const snap=JSON.stringify(products)+open;
  if(walking&&snap!==lastRows){lastRows=snap;let html='',r=null;const rooms=new Set(products.map(p=>p.room)).size;
-  for(const p of products){if(rooms>1&&p.room!==r){r=p.room;html+=`<div class="room">${esc(r)}</div>`}
-   html+=`<button class="row" data-id="${p.id}"><span class="ic${hot(p)?' hot':''}"><i class="ti ti-${hot(p)&&p.hazard_class&&/^(3|2\.1|4)/.test(p.hazard_class)?'flame':ICON[p.container_type]||'flask'}"></i></span>
+  products.forEach((p,i)=>{if(rooms>1&&p.room!==r){r=p.room;html+=`<div class="room">${esc(r)}</div>`}
+   html+=`<button class="row" data-id="${p.id}"><span class="ic num${hot(p)?' hot':''}">${i+1}</span>
     <span class="t"><b>${esc(p.product_name)}</b><span>${esc(summary(p))}</span></span>
-    <span class="chips">${p.confirmed?'<i class="ti ti-circle-check ok-mark" aria-label="Confirmed"></i>':''}${classChip(p)}${sdsChip(p)}</span></button>`}
+    <span class="chips">${p.confirmed?'<i class="ti ti-circle-check ok-mark" aria-label="Confirmed"></i>':''}${classChip(p)}${sdsChip(p)}</span></button>`});
   $('#rows').innerHTML=html||(open?'<div class="empty">Snap the first label to start the list.</div>':'')}
  update()}
 
 /* bottom button: Start walk → Send to client → Start new walk */
 let mode='start';
 function update(){const b=$('#mainBtn');
+ if(!me){mode='signin';b.textContent='Continue';b.setAttribute('aria-disabled',false);return}
  if(!visitId){mode='start';b.textContent='Start walk';b.setAttribute('aria-disabled',false);return}
  if(isOpen()){mode='send';b.textContent='Send to client';b.setAttribute('aria-disabled',!(data&&data.products.length));return}
  mode='new';b.textContent='Start new walk';b.setAttribute('aria-disabled',false)}
-$('#mainBtn').onclick=()=>{if(mode==='start')startWalk();else if(mode==='send')data&&data.products.length?sendReport():toast('Snap a label first');else newWalk()};
+$('#mainBtn').onclick=()=>{if(mode==='signin')signIn();else if(mode==='start')startWalk();else if(mode==='send')data&&data.products.length?sendReport():toast('Snap a label first');else newWalk()};
 
 /* ---------- product sheet ---------- */
 $('#rows').addEventListener('click',e=>{const b=e.target.closest('.row');if(b)detail(b.dataset.id)});

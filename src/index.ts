@@ -145,16 +145,18 @@ async function finishVisit(env: Env, visitId: string) {
 async function getVisit(env: Env, visitId: string) {
   const visit = await env.DB.prepare("SELECT * FROM visits WHERE id = ?").bind(visitId).first<VisitRow>();
   if (!visit) return error("Not found", 404);
-  const [{ results: products }, photos] = await Promise.all([
+  const [{ results: products }, photos, { results: rooms }] = await Promise.all([
     // Removed products are kept in the table (so new photos of them stay removed) but not shown.
     env.DB.prepare("SELECT * FROM products WHERE visit_id = ? AND removed = 0 ORDER BY room, product_name").bind(visitId).all<ProductRow>(),
     env.DB.prepare("SELECT COUNT(*) AS total, SUM(processed = 0) AS pending FROM photos WHERE visit_id = ?")
       .bind(visitId).first<{ total: number; pending: number | null }>(),
+    // Every room photographed so far (the room dropdown), in the order they were visited.
+    env.DB.prepare("SELECT room FROM photos WHERE visit_id = ? GROUP BY room ORDER BY MIN(created_at)").bind(visitId).all<{ room: string }>(),
   ]);
   const agent = await getAgentByName(env.VisitAgent, visitId);
   return Response.json({
     visit,
     products: products.map((p) => ({ ...p, manifest: manifestCode(p.container_type, p.container_material) })),
-    photos: { total: photos?.total ?? 0, pending: photos?.pending ?? 0 }, log: await agent.getLog(),
+    photos: { total: photos?.total ?? 0, pending: photos?.pending ?? 0 }, rooms: rooms.map((r) => r.room), log: await agent.getLog(),
   });
 }
