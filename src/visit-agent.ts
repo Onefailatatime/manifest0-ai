@@ -215,8 +215,13 @@ export class VisitAgent extends Agent<Env, VisitState> {
         "SELECT * FROM products WHERE visit_id = ? AND removed = 0 ORDER BY room, product_name", this.visitId,
       ).all<ProductRow>();
 
-      // Attach each distinct PDF until we hit the size limit; the rest are linked in the email.
-      const attachments: Attachment[] = [];
+      // The inventory as a spreadsheet first, then each distinct SDS PDF until we hit the size limit (the rest are linked).
+      const csv = inventoryCsv(products);
+      const attachments: Attachment[] = [{
+        content: Buffer.from(csv).toString("base64"),
+        filename: `Inventory - ${safeFilename(visit.site_name ?? "site")}.csv`,
+        content_type: "text/csv",
+      }];
       const attachedKeys = new Set<string>();
       let total = 0;
       for (const p of products) {
@@ -234,14 +239,17 @@ export class VisitAgent extends Agent<Env, VisitState> {
 
       const visitUrl = `${this.state.appUrl}/?visit=${this.visitId}`;
       const to = recipientsOf(visit);
-      const html = reportHtml(visit, products, attachedKeys, this.state.appUrl, visitUrl);
+      const draft = defaultEmail(visit, products);
+      const subject = visit.email_subject || draft.subject;
+      const message = visit.email_message ?? draft.message;
+      const html = messageHtml(message) + reportHtml(visit, products, attachedKeys, this.state.appUrl, visitUrl);
 
       if (!this.env.RESEND_API_KEY) {
         // No email provider configured (e.g. local dev): keep the report so it can be opened in the browser.
         const key = `visits/${this.visitId}/report.html`;
         await this.env.FILES.put(key, html, { httpMetadata: { contentType: "text/html; charset=utf-8" } });
         await this.db("UPDATE visits SET status = 'done' WHERE id = ?", this.visitId).run();
-        this.log(`RESEND_API_KEY not set, email not sent. Report: /api/files/${key} (${attachments.length} PDFs would be attached)`);
+        this.log(`RESEND_API_KEY not set, email not sent. Report: /api/files/${key} (${attachments.length} files would be attached)`);
         return;
       }
 
@@ -252,9 +260,9 @@ export class VisitAgent extends Agent<Env, VisitState> {
           from: this.env.EMAIL_FROM,
           to,
           reply_to: visit.user_email,
-          subject: `Chemical inventory${visit.site_name ? ` – ${visit.site_name}` : ""} (${products.length} products)`,
+          subject,
           html,
-          text: `Chemical inventory with ${products.length} products. View online: ${visitUrl}`,
+          text: `${message}\n\nView the inventory online: ${visitUrl}`,
           attachments,
         }),
       });
@@ -287,6 +295,7 @@ export class VisitAgent extends Agent<Env, VisitState> {
 export type VisitRow = {
   id: string; created_at: string; user_email: string; client_email: string; recipients: string; site_name: string | null;
   status: string; error: string | null; email_sent_at: string | null;
+  email_subject: string | null; email_message: string | null;
 };
 export type ProductRow = {
   id: string; visit_id: string; room: string; manufacturer: string | null; product_name: string; product_code: string | null;
@@ -341,37 +350,92 @@ async function downloadPdf(url: string): Promise<ArrayBuffer | null> {
 
 const safeFilename = (s: string) => s.replace(/[^\w\s.&()-]/g, "").slice(0, 80).trim();
 
-const esc = (s: unknown) =>
+export const esc = (s: unknown) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-function reportHtml(visit: VisitRow, products: ProductRow[], attached: Set<string>, appUrl: string, visitUrl: string) {
-  const rows = products.map((p) => {
-    const manifest = manifestCode(p.container_type, p.container_material);
-    const hazards = (JSON.parse(p.hazard_statements) as string[]).join("<br>");
-    const sds =
-      p.sds_key && attached.has(p.sds_key) ? "Attached"
-      : p.sds_key ? `<a href="${esc(`${appUrl}/api/files/${p.sds_key}`)}">Download</a>`
-      : p.sds_page_url || p.sds_url ? `<a href="${esc(p.sds_page_url ?? p.sds_url)}">Manufacturer page</a>`
-      : "Not found";
-    return `<tr>
-      <td>${esc(p.room)}</td><td>${esc(p.manufacturer)}</td>
-      <td><b>${esc(p.product_name)}</b><br><small>${esc(p.product_code)}</small></td>
-      <td><b>${p.quantity} × ${esc(p.container_type)}</b>${p.container_size ? `<br><small>${esc(p.container_size)}</small>` : ""}${
-        contentsText(p) ? `<br><small>${esc(contentsText(p))}</small>` : ""}${
-        p.count_note ? `<br><small><i>${esc(p.count_note)}</i></small>` : ""}</td>
-      <td>${manifest.code ? `<b>${p.quantity} ${manifest.code}</b>` : `<small>${esc(manifest.hint)}</small>`}</td>
-      <td>${esc(p.hazard_class ?? "")}${p.un_number ? `<br><small>${esc(p.un_number)}</small>` : ""}</td>
-      <td>${esc(p.signal_word)}</td>
-      <td><small>${hazards}</small></td><td>${sds}</td>
-    </tr>`;
+export function reportHtml(visit: VisitRow, products: ProductRow[], attached: Set<string>, appUrl: string, visitUrl: string) {
+  // Email-safe: tables and inline styles only. Grouped by room, one row per product.
+  const td = "padding:10px 8px;border-bottom:1px solid #e3e6ea;vertical-align:top;font-size:13px";
+  const muted = "color:#5a6372;font-size:12px";
+  const rooms = [...new Set(products.map((p) => p.room))];
+  let n = 0;
+  const body = rooms.map((room) => {
+    const rows = products.filter((p) => p.room === room).map((p) => {
+      n++;
+      const m = manifestCode(p.container_type, p.container_material);
+      const sds =
+        p.sds_key && attached.has(p.sds_key) ? `<span style="color:#194a25">&#10003; Attached</span>`
+        : p.sds_key ? `<a href="${esc(`${appUrl}/api/files/${p.sds_key}`)}" style="color:#1c5fe4">Download</a>`
+        : p.sds_page_url || p.sds_url ? `<a href="${esc(p.sds_page_url ?? p.sds_url)}" style="color:#1c5fe4">Maker's page</a>`
+        : `<span style="color:#b42318">Not found</span>`;
+      const size = [p.container_size?.split(/[(\n]/)[0].trim(), contentsText(p)].filter(Boolean).join(" · ");
+      return `<tr>
+        <td style="${td};${muted};width:22px">${n}</td>
+        <td style="${td}"><b>${esc(p.product_name)}</b>${p.manufacturer ? `<br><span style="${muted}">${esc(p.manufacturer)}</span>` : ""}${
+          p.product_code ? `<br><span style="${muted}">${esc(p.product_code)}</span>` : ""}</td>
+        <td style="${td}">${p.quantity} × ${esc(p.container_type === "other" ? "container" : p.container_type)}${size ? `<br><span style="${muted}">${esc(size)}</span>` : ""}${
+          p.count_note ? `<br><span style="${muted}"><i>${esc(p.count_note)}</i></span>` : ""}</td>
+        <td style="${td};white-space:nowrap">${m.code ? `<b>${p.quantity} ${m.code}</b>` : `<span style="${muted}">Lab pack</span>`}</td>
+        <td style="${td}">${p.hazard_class ? esc(p.hazard_class) : `<span style="${muted}">–</span>`}${p.un_number ? `<br><span style="${muted}">${esc(p.un_number)}</span>` : ""}${
+          p.signal_word && p.signal_word !== "none" ? `<br><span style="font-size:11px;font-weight:700;color:${p.signal_word === "DANGER" ? "#b42318" : "#8a4b00"}">${esc(p.signal_word)}</span>` : ""}</td>
+        <td style="${td};white-space:nowrap">${sds}</td>
+      </tr>`;
+    }).join("");
+    return `<tr><td colspan="6" style="padding:16px 8px 6px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5a6372;border-bottom:2px solid #041d3e">${esc(room)}</td></tr>${rows}`;
   }).join("");
-  return `<div style="font-family:system-ui,sans-serif">
-    <h2>Chemical inventory${visit.site_name ? ` – ${esc(visit.site_name)}` : ""}</h2>
-    <p>Prepared by ${esc(visit.user_email)} on ${esc(visit.created_at)} UTC. <a href="${esc(visitUrl)}">View online</a></p>
-    <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-size:14px">
-      <tr><th>Room</th><th>Manufacturer</th><th>Product</th><th>Containers</th><th>Manifest (Item 10)</th><th>DOT class</th><th>Signal word</th><th>Hazards</th><th>SDS</th></tr>
-      ${rows}
+  const withSds = products.filter((p) => p.sds_key).length;
+  const stat = (v: string | number, label: string) =>
+    `<td style="padding:10px 14px;background:#f5f6f8;border-radius:8px"><div style="font-size:20px;font-weight:700;color:#041d3e">${v}</div><div style="${muted}">${label}</div></td>`;
+  const th = "padding:8px;text-align:left;font-size:11px;font-weight:600;color:#5a6372;text-transform:uppercase;letter-spacing:.04em";
+  return `<div style="font-family:Inter,Segoe UI,system-ui,sans-serif;color:#0f151f;max-width:760px">
+    <div style="background:#041d3e;color:#fff;padding:16px 18px;border-radius:12px 12px 0 0">
+      <div style="font-size:13px;font-weight:600">Manifest0 <span style="color:#f3bf2b">AI</span></div>
+      <div style="font-size:20px;font-weight:700;margin-top:6px">Chemical inventory${visit.site_name ? ` – ${esc(visit.site_name)}` : ""}</div>
+      <div style="font-size:12px;opacity:.75;margin-top:4px">Prepared by ${esc(visit.user_email)} · ${esc(visit.created_at.slice(0, 10))}</div>
+    </div>
+    <div style="height:6px;background:repeating-linear-gradient(-45deg,#f3bf2b 0 8px,#041d3e 8px 16px)"></div>
+    <table cellspacing="8" cellpadding="0" style="margin:8px -8px"><tr>
+      ${stat(products.length, "products")}${stat(rooms.length, rooms.length === 1 ? "room" : "rooms")}${stat(products.reduce((a, p) => a + p.quantity, 0), "containers")}${stat(`${withSds}/${products.length}`, "SDS found")}
+    </tr></table>
+    <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%">
+      <tr><th style="${th}">#</th><th style="${th}">Product</th><th style="${th}">Containers</th><th style="${th}">EPA code</th><th style="${th}">DOT hazard</th><th style="${th}">SDS</th></tr>
+      ${body}
     </table>
-    <p style="color:#666;font-size:12px">Product data was read from label photos by AI. Verify against the attached SDS before disposal.</p>
+    <p style="${muted};margin-top:16px">Product data was read from label photos by AI and checked by the technician. Verify against the attached SDS before disposal.
+    <a href="${esc(visitUrl)}" style="color:#1c5fe4">View online</a></p>
   </div>`;
+}
+
+/** The email the technician sees on the review screen before sending; they can edit both. */
+export function defaultEmail(visit: VisitRow, products: ProductRow[]) {
+  const site = visit.site_name ?? "the site";
+  const rooms = new Set(products.map((p) => p.room)).size;
+  const withSds = products.filter((p) => p.sds_key).length;
+  return {
+    subject: `Chemical inventory – ${site} (${products.length} products)`,
+    message:
+      `Hello,\n\n` +
+      `Here is the chemical inventory for ${site}: ${products.length} products in ${rooms} room${rooms === 1 ? "" : "s"}. ` +
+      `The Safety Data Sheets (${withSds} of ${products.length}) and a spreadsheet of the inventory are attached.\n\n` +
+      `Best regards,\n${visit.user_email}`,
+  };
+}
+
+/** The technician's message as HTML, above the inventory table. */
+export const messageHtml = (text: string) =>
+  `<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5;margin-bottom:24px">${
+    text.trim().split(/\n{2,}/).map((para) => `<p>${esc(para).replace(/\n/g, "<br>")}</p>`).join("")}</div>`;
+
+/** The inventory as CSV (opens in Excel / Google Sheets). */
+export function inventoryCsv(products: ProductRow[]) {
+  const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const head = ["Room", "Manufacturer", "Product", "Product code", "Containers", "Container type", "Container material",
+    "Container size", "Contents", "EPA manifest (Item 10)", "DOT hazard class", "UN number", "Signal word", "Hazards", "SDS"];
+  const rows = products.map((p) => {
+    const m = manifestCode(p.container_type, p.container_material);
+    return [p.room, p.manufacturer, p.product_name, p.product_code, p.quantity, p.container_type, p.container_material,
+      p.container_size, contentsText(p), m.code ? `${p.quantity} ${m.code}` : m.hint, p.hazard_class, p.un_number, p.signal_word,
+      (JSON.parse(p.hazard_statements) as string[]).join("; "), p.sds_key ? "Attached" : p.sds_page_url ?? p.sds_url ?? "Not found"];
+  });
+  return [head, ...rows].map((r) => r.map(cell).join(",")).join("\r\n");
 }

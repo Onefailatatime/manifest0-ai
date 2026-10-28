@@ -87,6 +87,7 @@ input::placeholder{color:var(--m0-text-muted)}
 .clear{background:none;border:0;padding:0;min-height:var(--m0-tap);color:var(--m0-text-2);font-size:var(--m0-fs-sm)}
 .btn{min-height:var(--m0-tap);border-radius:var(--m0-radius-md);font-weight:600;font-size:var(--m0-fs-sm);display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 14px;border:1px solid var(--m0-border-strong);background:var(--m0-surface);color:var(--m0-text);text-decoration:none}
 .btn.dark{background:var(--m0-primary);color:var(--m0-on-primary);border-color:transparent}
+.btn:disabled{opacity:.4}
 .btn.danger{background:var(--m0-error-bg);color:var(--m0-error);border-color:transparent}
 .btn.ok{background:var(--m0-success-bg);color:var(--m0-success);border-color:transparent}
 .btn.wide{width:100%}
@@ -230,6 +231,22 @@ body.out #app,body.out .sticky{display:none}
 .pdf canvas{display:block;border:1px solid var(--m0-line);border-radius:6px;background:#fff}
 .pdf .status{padding:40px 0;text-align:center;color:var(--m0-text-2);font-size:var(--m0-fs-sm)}
 .pdf a{color:var(--m0-accent)}
+
+.rv-sec{display:flex;align-items:baseline;gap:6px;font-size:13px;font-weight:600;margin:20px 0 8px}
+.rv-sec:first-child{margin-top:4px}
+.rv-sec small{font-weight:400;color:var(--m0-text-2)}
+.rv-to{display:flex;gap:10px;font-size:var(--m0-fs-sm);padding:4px 0}
+.rv-to span{width:48px;color:var(--m0-text-2);flex:0 0 auto}
+.rv-to b{font-weight:500;overflow-wrap:anywhere}
+.rv-lbl{display:block;font-size:12px;font-weight:500;color:var(--m0-text-2);margin:12px 0 4px}
+.rv-msg{height:auto;padding:10px 12px;line-height:1.5;resize:vertical;font-family:var(--m0-font-sans)}
+.rv-files{list-style:none;margin:0;padding:0;border:1px solid var(--m0-line);border-radius:12px}
+.rv-files li{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--m0-line);font-size:var(--m0-fs-sm)}
+.rv-files li:last-child{border-bottom:0}
+.rv-files i{font-size:18px;color:var(--m0-text-2);flex:0 0 auto}
+.rv-files span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rv-report{width:100%;min-height:200px;border:1px solid var(--m0-line);border-radius:12px;background:#fff;display:block}
+.rv-send{min-height:var(--m0-btn-h);font-size:1.0625rem}
 
 /* room dropdown */
 .menu{position:absolute;right:var(--m0-gutter);left:var(--m0-gutter);top:calc(100% + 4px);z-index:30;background:var(--m0-bg);color:var(--m0-text);border:1px solid var(--m0-line);border-radius:var(--m0-radius-lg);box-shadow:var(--m0-shadow-2);padding:6px;max-height:60vh;overflow:auto}
@@ -550,16 +567,33 @@ async function patch(id,body,msg){
  catch(e){toast(e.message);return false}}
 
 /* ---------- send report ---------- */
-function sendReport(){
- const n=data.products.length,unchecked=data.products.filter(p=>!p.confirmed).length,list=JSON.parse(data.visit.recipients||'[]');
- openSheet('Send the report?',`<p style="font-size:14px">${plural(n,'product')} and their SDS sheets go to <b>${esc(list.slice(1).join(', ')||list[0])}</b>${list.length>1?', with a copy to you':''}.</p>
-  <ul style="font-size:14px;margin:10px 0 16px 18px;color:var(--m0-text-2)">
-  ${busy()?'<li>Manifest0 AI is still working. The email goes out as soon as it finishes.</li>':''}
-  ${unchecked?`<li>${plural(unchecked,'item')} not confirmed yet.</li>`:''}
-  <li>After sending, the inventory can't be changed.</li></ul>
-  <div class="grid2"><button class="btn" id="eNo">Not yet</button><button class="btn dark" id="eYes"><i class="ti ti-send"></i> Send</button></div>`);
- $('#eNo').onclick=closeSheet;
- $('#eYes').onclick=async()=>{closeSheet();try{await api(`/api/visits/${visitId}/finish`,{method:'POST'});await load()}catch(e){toast(e.message)}}}
+/* Send to client: a review page with the email draft (editable), the attachments and the report itself. Nothing goes out until Send. */
+async function sendReport(){
+ openSheet('Review and send','<div class="pdf"><div class="status"><i class="ti ti-loader-2 spin"></i> Preparing the report…</div></div>',null,'full');
+ let r;try{r=await api(`/api/visits/${visitId}/report`)}catch(e){toast(e.message);closeSheet();return}
+ const ic={spreadsheet:'file-spreadsheet',sds:'file-type-pdf'};
+ openSheet('Review and send',`
+  <div class="rv-sec">Email</div>
+  <div class="rv-to"><span>To</span><b>${esc(r.to.join(', ')||r.cc)}</b></div>
+  ${r.to.length?`<div class="rv-to"><span>Copy</span><b>${esc(r.cc)}</b></div>`:''}
+  <label class="rv-lbl" for="rvSubject">Subject</label>
+  <input id="rvSubject" class="field" type="text" value="${esc(r.subject)}">
+  <label class="rv-lbl" for="rvMsg">Message</label>
+  <textarea id="rvMsg" class="field rv-msg" rows="7">${esc(r.message)}</textarea>
+  <div class="rv-sec">Attachments <small>${r.attachments.length}</small></div>
+  <ul class="rv-files">${r.attachments.map(f=>`<li><i class="ti ti-${ic[f.kind]}"></i><span>${esc(f.name)}</span></li>`).join('')}</ul>
+  ${r.missingSds.length?`<div class="banner warn"><i class="ti ti-alert-triangle"></i> No SDS found for ${esc(r.missingSds.join(', '))}. The report says so.</div>`:''}
+  ${busy()?'<div class="banner warn">Manifest0 AI is still working. The email goes out as soon as it finishes.</div>':''}
+  <div class="rv-sec">Report <small>in the email, below your message</small></div>
+  <iframe class="rv-report" id="rvReport" title="Report preview" sandbox="allow-same-origin"></iframe>
+  <div class="ctr-note" style="margin:10px 0 16px">After sending, the inventory can't be changed.</div>
+  <button class="btn dark wide rv-send" id="rvSend"><i class="ti ti-send"></i> Send to client</button>`,null,'full');
+ const f=$('#rvReport');f.srcdoc=`<!doctype html><meta name="viewport" content="width=device-width"><body style="margin:0;padding:12px;background:#fff;color:#111">${r.reportHtml}</body>`;
+ f.onload=()=>{try{f.style.height=f.contentDocument.documentElement.scrollHeight+'px'}catch(e){}};
+ $('#rvSend').onclick=async()=>{$('#rvSend').disabled=true;
+  try{await api(`/api/visits/${visitId}/finish`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:$('#rvSubject').value,message:$('#rvMsg').value})});
+   closeSheet();toast('Report is on its way');await load()}
+  catch(e){toast(e.message);$('#rvSend').disabled=false}}}
 
 function newWalk(){
  clearTimeout(pollTimer);visitId=null;data=null;lastRows='';tray.forEach(t=>URL.revokeObjectURL(t.url));tray=[];
@@ -676,8 +710,7 @@ function render(){
   products.forEach((p,i)=>{if(rooms>1&&p.room!==r){r=p.room;html+=`<div class="room">${esc(r)}</div>`}
    html+=`<div class="item"><button class="row" data-id="${p.id}"><span class="ic num${hot(p)?' hot':''}">${i+1}</span>
     <span class="t"><b>${esc(p.product_name)}</b><span>${esc(summary(p))}</span></span>
-    <span class="chips"><span class="chip-row">${p.confirmed?'<i class="ti ti-circle-check ok-mark" aria-label="Confirmed"></i>':''}${sdsChip(p)}</span>${ghsOf(p).length?`<span class="chip-row">${hazardPics(p)}</span>`:''}</span></button>
-    ${open?`<button class="del" data-del="${p.id}" aria-label="Delete ${esc(p.product_name)}"><i class="ti ti-trash"></i></button>`:''}</div>`});
+    <span class="chips"><span class="chip-row">${sdsChip(p)}</span>${ghsOf(p).length?`<span class="chip-row">${hazardPics(p)}</span>`:''}</span></button></div>`});
   $('#rows').innerHTML=html||(open?'<div class="empty">Snap the first label to start the list.</div>':'')}
  update()}
 
@@ -692,8 +725,6 @@ $('#mainBtn').onclick=()=>{if(mode==='signin')signIn();else if(mode==='start')st
 
 /* ---------- product sheet ---------- */
 $('#rows').addEventListener('click',e=>{
- const d=e.target.closest('[data-del]');
- if(d){confirmDelete(data.products.find(x=>x.id===d.dataset.del));return}
  const b=e.target.closest('.row');if(b)detail(b.dataset.id)});
 function detail(id){
  const p=data.products.find(x=>x.id===id);if(!p)return;const open=isOpen();
@@ -730,22 +761,25 @@ function detail(id){
    <dt>EPA manifest</dt><dd>${m.code?esc(p.quantity+' '+m.code):'<small>'+esc(m.hint)+'</small>'}</dd></dl>`}
   <div class="stack">
    ${p.sds_key?`<button class="btn wide" id="dSds"><i class="ti ti-file-text"></i> View SDS</button>`:sdsLink?`<a class="btn wide" href="${esc(sdsLink)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Open SDS page</a>`:''}
-   ${open?`<div class="grid2"><button class="btn danger" id="dRm"><i class="ti ti-trash"></i> Delete</button><button class="btn ok" id="dOk"><i class="ti ti-check"></i> ${p.confirmed?'Unconfirm':'Confirm'}</button></div>`:''}
+   ${open?`<div class="grid2"><button class="btn danger" id="dRm"><i class="ti ti-trash"></i> Delete</button><button class="btn dark" id="dSave" disabled><i class="ti ti-device-floppy"></i> Save changes</button></div>`:''}
   </div>`,id,'full');
  if($('#dSds'))$('#dSds').onclick=()=>viewSds(p);
  if(!open)return;
- // dropdowns save on pick; steppers save half a second after the last tap
+ // edits are kept as a draft; nothing is saved until "Save changes"
+ const orig={quantity:p.quantity,containerType:p.container_type,containerMaterial:p.container_material,innerCount:p.inner_count??0},draft={...orig};
+ const changed=()=>Object.keys(draft).filter(k=>draft[k]!==orig[k]);
+ const dirty=()=>{$('#dSave').disabled=!changed().length};
  document.querySelectorAll('#sheetBody .sel-wrap').forEach(w=>{const pop=w.querySelector('.sel-pop');
   w.querySelector('.sel').onclick=e=>{e.stopPropagation();const show=pop.hidden;document.querySelectorAll('.sel-pop').forEach(x=>x.hidden=true);pop.hidden=!show};
-  pop.onclick=async e=>{const o=e.target.closest('[data-val]');if(!o)return;pop.hidden=true;
-   if(await patch(id,{[w.dataset.key]:o.dataset.val},'Saved'))refreshSheet(id)}});
- let t;const save=(key,el,min)=>{clearTimeout(t);t=setTimeout(async()=>{const v=Math.max(min,parseInt(el.value)||min);
-  if(await patch(id,{[key]:v},'Saved'))refreshSheet(id)},500)};
+  pop.onclick=e=>{const o=e.target.closest('[data-val]');if(!o)return;pop.hidden=true;draft[w.dataset.key]=o.dataset.val;
+   w.querySelector('.sel span').textContent=label(o.dataset.val);pop.querySelectorAll('[data-val]').forEach(x=>x.setAttribute('aria-selected',x===o));dirty()}});
  [['eQty','quantity',1],['eInner','innerCount',0]].forEach(([el,key,min])=>{const inp=$('#'+el);if(!inp)return;
-  inp.addEventListener('input',()=>save(key,inp,min));
-  inp.parentElement.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{inp.value=Math.max(min,(parseInt(inp.value)||0)+ +b.dataset.d);save(key,inp,min)})});
- $('#dRm').onclick=()=>confirmDelete(p);
- $('#dOk').onclick=async()=>{const c=!p.confirmed;closeSheet();await patch(id,{confirmed:c},c?'Confirmed':'Marked as needs review')}}
+  const set=v=>{draft[key]=Math.max(min,parseInt(v)||min);dirty()};
+  inp.addEventListener('input',()=>set(inp.value));
+  inp.parentElement.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{inp.value=Math.max(min,(parseInt(inp.value)||0)+ +b.dataset.d);set(inp.value)})});
+ $('#dSave').onclick=async()=>{const body={};for(const k of changed())body[k]=draft[k];$('#dSave').disabled=true;
+  if(await patch(id,body,'Saved'))refreshSheet(id);else dirty()};
+ $('#dRm').onclick=()=>confirmDelete(p)}
 /* ---------- SDS viewer: shows the PDF inside the app (PDF.js), with a Download button ---------- */
 const PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 let pdfjsReady;

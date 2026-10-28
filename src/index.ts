@@ -1,7 +1,7 @@
 import { getAgentByName } from "agents";
 import { CONTAINER_MATERIALS, manifestCode, type ContainerMaterial } from "./manifest";
 import { CONTAINER_TYPES, type ContainerType } from "./muse";
-import type { ProductRow, VisitRow } from "./visit-agent";
+import { defaultEmail, reportHtml, type ProductRow, type VisitRow } from "./visit-agent";
 
 // Durable Object classes must be exported from the entry file.
 export { VisitAgent } from "./visit-agent";
@@ -20,13 +20,14 @@ export default {
     if (method === "POST" && pathname === "/api/visits") return createVisit(request, env, url.origin);
     if (method === "GET" && pathname === "/api/visits") return listVisits(env, url.searchParams.get("email") ?? "");
 
-    const visit = pathname.match(/^\/api\/visits\/([\w-]+)(\/photos|\/finish)?$/);
+    const visit = pathname.match(/^\/api\/visits\/([\w-]+)(\/photos|\/finish|\/report)?$/);
     if (visit) {
       const [, visitId, action] = visit;
       if (method === "GET" && !action) return getVisit(env, visitId);
       if (method === "DELETE" && !action) return deleteVisit(env, visitId, url.searchParams.get("email") ?? "");
       if (method === "POST" && action === "/photos") return addPhotos(request, env, visitId);
-      if (method === "POST" && action === "/finish") return finishVisit(env, visitId);
+      if (method === "POST" && action === "/finish") return finishVisit(request, env, visitId);
+      if (method === "GET" && action === "/report") return reportPreview(env, visitId, url.origin);
     }
 
     const product = pathname.match(/^\/api\/products\/([\w-]+)$/);
@@ -164,10 +165,39 @@ async function editProduct(request: Request, env: Env, productId: string) {
   return Response.json({ ok: true });
 }
 
-async function finishVisit(env: Env, visitId: string) {
+/** What the client will get: the email draft (editable), the report as it appears in the email, and the attachments. */
+async function reportPreview(env: Env, visitId: string, origin: string) {
+  const visit = await env.DB.prepare("SELECT * FROM visits WHERE id = ? AND deleted = 0").bind(visitId).first<VisitRow>();
+  if (!visit) return error("Not found", 404);
+  const { results: products } = await env.DB.prepare(
+    "SELECT * FROM products WHERE visit_id = ? AND removed = 0 ORDER BY room, product_name",
+  ).bind(visitId).all<ProductRow>();
+  const sdsKeys = new Set(products.map((p) => p.sds_key).filter((k): k is string => !!k));
+  const draft = defaultEmail(visit, products);
+  const site = visit.site_name ?? "site";
+  return Response.json({
+    to: (JSON.parse(visit.recipients) as string[]).slice(1),
+    cc: visit.user_email,
+    subject: visit.email_subject || draft.subject,
+    message: visit.email_message ?? draft.message,
+    reportHtml: reportHtml(visit, products, sdsKeys, origin, `${origin}/?visit=${visitId}`),
+    attachments: [
+      { name: `Inventory - ${site}.csv`, kind: "spreadsheet" },
+      ...[...new Set(products.filter((p) => p.sds_key).map((p) => p.product_name))].map((n) => ({ name: `SDS - ${n}.pdf`, kind: "sds" })),
+    ],
+    missingSds: products.filter((p) => !p.sds_key).map((p) => p.product_name),
+  });
+}
+
+/** Send the report, with the subject and message as the technician reviewed them. */
+async function finishVisit(request: Request, env: Env, visitId: string) {
   const visit = await env.DB.prepare("SELECT status FROM visits WHERE id = ?").bind(visitId).first<{ status: string }>();
   if (!visit) return error("Visit not found.", 404);
   if (visit.status !== "open") return error("This visit is already finished.");
+  const body = (await request.json().catch(() => ({}))) as { subject?: string; message?: string };
+  const subject = body.subject?.trim().slice(0, 200) || null;
+  const message = body.message?.trim().slice(0, 5000) || null;
+  await env.DB.prepare("UPDATE visits SET email_subject = ?, email_message = ? WHERE id = ?").bind(subject, message, visitId).run();
   const agent = await getAgentByName(env.VisitAgent, visitId);
   await agent.finish();
   return Response.json({ ok: true });
