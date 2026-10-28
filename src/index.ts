@@ -43,16 +43,15 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
-/** Start a site visit and its agent. */
+/** Start a site visit and its agent. The first recipient is the technician (reply-to), the rest are the client. */
 async function createVisit(request: Request, env: Env, origin: string) {
-  const body = (await request.json()) as { userEmail?: string; clientEmail?: string; siteName?: string };
-  const userEmail = body.userEmail?.trim() ?? "";
-  const clientEmail = body.clientEmail?.trim() ?? "";
-  if (!isEmail(userEmail) || !isEmail(clientEmail)) return error("Enter valid email addresses.");
+  const body = (await request.json()) as { recipients?: string[]; siteName?: string };
+  const recipients = [...new Set((body.recipients ?? []).map((e) => String(e).trim().toLowerCase()).filter(Boolean))];
+  if (!recipients.length || recipients.length > 10 || !recipients.every(isEmail)) return error("Enter 1–10 valid email addresses.");
 
   const visitId = crypto.randomUUID();
-  await env.DB.prepare("INSERT INTO visits (id, user_email, client_email, site_name) VALUES (?, ?, ?, ?)")
-    .bind(visitId, userEmail, clientEmail, body.siteName?.trim() || null).run();
+  await env.DB.prepare("INSERT INTO visits (id, user_email, client_email, recipients, site_name) VALUES (?, ?, ?, ?, ?)")
+    .bind(visitId, recipients[0], recipients.slice(1).join(", "), JSON.stringify(recipients), body.siteName?.trim() || null).run();
 
   const agent = await getAgentByName(env.VisitAgent, visitId);
   await agent.open(visitId, origin);
@@ -86,17 +85,42 @@ async function addPhotos(request: Request, env: Env, visitId: string) {
   return Response.json({ batchId });
 }
 
-/** Technician corrects a product's container count or type. The agent won't overwrite it afterwards. */
+/**
+ * Technician review of one product. Send only the fields that changed:
+ * container fields (count, type, material, items inside) mark it as edited, so the agent won't overwrite them;
+ * confirmed / removed are the Confirm and Remove buttons.
+ */
 async function editProduct(request: Request, env: Env, productId: string) {
   const body = (await request.json()) as {
     quantity?: number; containerType?: string; containerMaterial?: string; innerCount?: number | null;
+    confirmed?: boolean; removed?: boolean;
   };
-  const innerCount = body.innerCount == null ? null : Number(body.innerCount);
-  if (innerCount !== null && (!Number.isInteger(innerCount) || innerCount < 0)) return error("Items inside must be a whole number.");
-  const quantity = Number(body.quantity);
-  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100000) return error("Count must be a whole number, 1 or more.");
-  if (!CONTAINER_TYPES.includes(body.containerType as ContainerType)) return error("Unknown container type.");
-  if (!CONTAINER_MATERIALS.includes(body.containerMaterial as ContainerMaterial)) return error("Unknown container material.");
+  const sets: string[] = [];
+  const params: unknown[] = [];
+  const set = (column: string, value: unknown) => { sets.push(`${column} = ?`); params.push(value); };
+
+  if (body.quantity !== undefined) {
+    const quantity = Number(body.quantity);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100000) return error("Count must be a whole number, 1 or more.");
+    set("quantity", quantity);
+  }
+  if (body.containerType !== undefined) {
+    if (!CONTAINER_TYPES.includes(body.containerType as ContainerType)) return error("Unknown container type.");
+    set("container_type", body.containerType);
+  }
+  if (body.containerMaterial !== undefined) {
+    if (!CONTAINER_MATERIALS.includes(body.containerMaterial as ContainerMaterial)) return error("Unknown container material.");
+    set("container_material", body.containerMaterial);
+  }
+  if (body.innerCount !== undefined) {
+    const innerCount = body.innerCount === null ? null : Number(body.innerCount);
+    if (innerCount !== null && (!Number.isInteger(innerCount) || innerCount < 0)) return error("Items inside must be a whole number.");
+    set("inner_count", innerCount);
+  }
+  if (sets.length) sets.push("count_note = NULL", "count_edited = 1");
+  if (body.confirmed !== undefined) set("confirmed", body.confirmed ? 1 : 0);
+  if (body.removed !== undefined) set("removed", body.removed ? 1 : 0);
+  if (!sets.length) return error("Nothing to change.");
 
   const row = await env.DB.prepare(
     "SELECT v.status FROM products p JOIN visits v ON v.id = p.visit_id WHERE p.id = ?",
@@ -104,11 +128,7 @@ async function editProduct(request: Request, env: Env, productId: string) {
   if (!row) return error("Product not found.", 404);
   if (row.status !== "open") return error("This visit is already finished.");
 
-  await env.DB.prepare(
-    `UPDATE products SET quantity = ?, container_type = ?, container_material = ?,
-       inner_count = CASE WHEN ? THEN ? ELSE inner_count END, count_note = NULL, count_edited = 1
-     WHERE id = ?`,
-  ).bind(quantity, body.containerType, body.containerMaterial, body.innerCount !== undefined ? 1 : 0, innerCount, productId).run();
+  await env.DB.prepare(`UPDATE products SET ${sets.join(", ")} WHERE id = ?`).bind(...params, productId).run();
   return Response.json({ ok: true });
 }
 
@@ -126,7 +146,8 @@ async function getVisit(env: Env, visitId: string) {
   const visit = await env.DB.prepare("SELECT * FROM visits WHERE id = ?").bind(visitId).first<VisitRow>();
   if (!visit) return error("Not found", 404);
   const [{ results: products }, photos] = await Promise.all([
-    env.DB.prepare("SELECT * FROM products WHERE visit_id = ? ORDER BY room, product_name").bind(visitId).all<ProductRow>(),
+    // Removed products are kept in the table (so new photos of them stay removed) but not shown.
+    env.DB.prepare("SELECT * FROM products WHERE visit_id = ? AND removed = 0 ORDER BY room, product_name").bind(visitId).all<ProductRow>(),
     env.DB.prepare("SELECT COUNT(*) AS total, SUM(processed = 0) AS pending FROM photos WHERE visit_id = ?")
       .bind(visitId).first<{ total: number; pending: number | null }>(),
   ]);

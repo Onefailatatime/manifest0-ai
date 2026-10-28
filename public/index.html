@@ -1,282 +1,519 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Manifest Zero</title>
-  <style>
-    :root { --bg:#f7f7f5; --card:#fff; --text:#1a1a1a; --muted:#6b6b6b; --line:#e3e3df; --accent:#d9480f; --ok:#2b8a3e; --warn:#b7791f; --bad:#e03131; }
-    @media (prefers-color-scheme: dark) {
-      :root { --bg:#141414; --card:#1e1e1e; --text:#eee; --muted:#9a9a9a; --line:#333; --accent:#ff7a3d; --ok:#51cf66; --warn:#f0b429; --bad:#ff6b6b; }
-    }
-    * { box-sizing: border-box; }
-    body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui, sans-serif; }
-    main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 64px; }
-    h1 { font-size: 22px; margin: 0 0 4px; }
-    h1 span { color: var(--accent); }
-    h2 { font-size: 16px; margin: 0 0 8px; }
-    .sub { color: var(--muted); margin: 0 0 24px; }
-    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:16px; }
-    label { display:block; font-weight:600; font-size:14px; margin:12px 0 4px; }
-    label:first-child { margin-top:0; }
-    input[type=email], input[type=text] { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; }
-    .drop { border:2px dashed var(--line); border-radius:12px; padding:20px; text-align:center; color:var(--muted); cursor:pointer; margin-top:12px; }
-    .thumbs { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
-    .thumbs img { width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line); }
-    button { margin-top:16px; width:100%; padding:12px; border:0; border-radius:8px; background:var(--accent); color:#fff; font:600 16px system-ui; cursor:pointer; }
-    button.secondary { background:transparent; color:var(--text); border:1px solid var(--line); }
-    button:disabled { opacity:.5; cursor:default; }
-    .err { color:var(--bad); margin-top:12px; }
-    .head { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
-    .status { display:flex; align-items:center; gap:10px; font-weight:600; }
-    .dot { width:10px; height:10px; border-radius:50%; background:var(--muted); }
-    .dot.busy { background:var(--warn); animation:pulse 1s infinite alternate; }
-    .dot.done { background:var(--ok); } .dot.failed { background:var(--bad); }
-    @keyframes pulse { to { opacity:.3; } }
-    .log { font:12px/1.6 ui-monospace, monospace; color:var(--muted); margin-top:8px; max-height:120px; overflow:auto; }
-    .table-wrap { overflow-x:auto; }
-    table { width:100%; border-collapse:collapse; font-size:14px; }
-    th, td { text-align:left; padding:8px; border-bottom:1px solid var(--line); vertical-align:top; }
-    th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; }
-    tr.room td { background:var(--bg); font-weight:700; font-size:13px; }
-    .pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:12px; font-weight:600; border:1px solid currentColor; white-space:nowrap; }
-    .found { color:var(--ok); } .pending { color:var(--warn); } .not_found, .page_only { color:var(--muted); }
-    small { color:var(--muted); }
-    a { color:var(--accent); }
-    .empty { color:var(--muted); text-align:center; padding:24px; }
-    .count { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
-    .code { color:var(--text); letter-spacing:.5px; }
-    .contents { width:100%; font-size:13px; color:var(--muted); margin-top:4px; }
-    .count input, .count select { padding:4px 6px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--text); font:inherit; font-size:14px; }
-    .count input { width:56px; }
-    .note { color:var(--warn); font-style:italic; }
-    .saved { color:var(--ok); font-size:12px; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#041D3E">
+<title>Manifest0-Ai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Design tokens (colors, type, spacing) from Jessyka's prototype. Light = navy, dark = steel gray + hazard yellow. -->
+<link rel="stylesheet" href="tokens.css">
+<script>
+(function(){var q=new URLSearchParams(location.search).get('theme'),s=null;try{s=localStorage.getItem('m0-theme')}catch(e){}
+var t=q||s||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();
+</script>
+<style>
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--m0-font-sans);font-size:var(--m0-fs-body);line-height:var(--m0-lh-body);color:var(--m0-text);background:var(--m0-bg);-webkit-font-smoothing:antialiased}
+body.lock{overflow:hidden}
+button,select,input{font:inherit;color:inherit}
+.wrap{max-width:var(--m0-content-max);margin:0 auto;padding-bottom:140px}
+:focus-visible{outline:3px solid var(--m0-focus);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+[hidden]{display:none!important}
+
+.hero{background:var(--m0-header);color:var(--m0-on-header);padding:calc(var(--m0-space-3) + env(safe-area-inset-top)) var(--m0-gutter) var(--m0-space-6)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:var(--m0-tap)}
+.mark{font-weight:700;font-size:1.125rem;letter-spacing:-.01em;background:none;border:0;min-height:var(--m0-tap);padding:0;cursor:pointer;color:var(--m0-on-header)}
+.mark b{color:var(--m0-header-accent)}
+.pill{min-height:var(--m0-tap);min-width:var(--m0-tap);padding:0 14px;border-radius:var(--m0-radius-pill);border:1px solid color-mix(in srgb,var(--m0-on-header) 40%,transparent);background:transparent;color:var(--m0-on-header);font-weight:500;font-size:var(--m0-fs-sm);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.hero h1{font-size:var(--m0-fs-display);line-height:var(--m0-lh-display);font-weight:700;letter-spacing:-.02em;margin-top:var(--m0-space-3)}
+.hero p{font-size:var(--m0-fs-sm);opacity:.88;margin-top:var(--m0-space-2)}
+.rule{width:48px;height:3px;background:var(--m0-header-accent);border-radius:2px;margin-top:var(--m0-space-4)}
+.tag{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:var(--m0-radius-sm);font-size:var(--m0-fs-xs);font-weight:600;background:var(--m0-surface-2);color:var(--m0-text-2);white-space:nowrap}
+.tag.warn{background:var(--m0-warning-bg);color:var(--m0-warning)}
+
+main{padding:0 var(--m0-gutter)}
+.card{background:var(--m0-surface);border:1px solid var(--m0-border);border-radius:var(--m0-radius-lg);box-shadow:var(--m0-shadow-1);padding:var(--m0-space-4);margin-top:var(--m0-space-4)}
+.head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.eyebrow{font-size:var(--m0-fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--m0-text-2)}
+h2{font-size:var(--m0-fs-h3);line-height:var(--m0-lh-h3);font-weight:600}
+h3.sub{font-size:var(--m0-fs-sm);font-weight:600;margin-top:var(--m0-space-4)}
+
+.deck{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;margin-top:var(--m0-space-3);scrollbar-width:none;overscroll-behavior-x:contain}
+.deck::-webkit-scrollbar{display:none}
+.slide{flex:0 0 100%;scroll-snap-align:center;background:var(--m0-surface-2);border-radius:var(--m0-radius-md);padding:var(--m0-space-4);display:flex;gap:var(--m0-space-3);min-height:108px}
+.num{flex:0 0 36px;height:36px;border-radius:999px;background:var(--m0-primary);color:var(--m0-on-primary);display:grid;place-items:center;font-weight:700}
+.slide h4{font-size:var(--m0-fs-body);font-weight:600;line-height:1.35}
+.slide p{font-size:var(--m0-fs-sm);color:var(--m0-text-2);margin-top:4px}
+.deck-nav{display:flex;align-items:center;justify-content:space-between;margin-top:var(--m0-space-2)}
+.arrow{width:var(--m0-tap);height:var(--m0-tap);border-radius:999px;border:1px solid var(--m0-border-strong);background:var(--m0-surface);font-size:20px;cursor:pointer;line-height:1}
+.arrow:disabled{opacity:.4}
+.dots{display:flex;align-items:center}
+.dots button{width:var(--m0-tap);height:var(--m0-tap);border:0;background:none;padding:0;cursor:pointer;display:grid;place-items:center}
+.dots button span{display:block;width:8px;height:8px;border-radius:999px;background:var(--m0-dot-off);transition:width var(--m0-motion),background var(--m0-motion)}
+.dots button[aria-current=true] span{width:20px;background:var(--m0-accent)}
+
+.drop{margin-top:var(--m0-space-3);border:2px dashed var(--m0-border-strong);border-radius:var(--m0-radius-lg);background:var(--m0-surface-2);padding:var(--m0-space-4);text-align:center;transition:border-color var(--m0-motion),background var(--m0-motion)}
+.drop.over{border-color:var(--m0-accent);background:color-mix(in srgb,var(--m0-accent) 10%,var(--m0-surface-2))}
+.drop strong{display:block}
+.drop .types{font-size:var(--m0-fs-sm);color:var(--m0-text-2)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:var(--m0-space-3)}
+.btn{min-height:var(--m0-tap);border-radius:var(--m0-radius-md);font-weight:600;font-size:var(--m0-fs-sm);display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;padding:0 12px;text-align:center;line-height:1.2;user-select:none;text-decoration:none}
+.btn-2{background:var(--m0-surface);color:var(--m0-text);border:1px solid var(--m0-border-strong)}
+.btn-2:active{background:var(--m0-surface-2)}
+.btn-2:disabled{opacity:.45}
+.btn-ghost{background:none;border:0;color:var(--m0-accent);font-weight:600}
+.btn-danger{background:var(--m0-error-bg);color:var(--m0-error);border:1px solid color-mix(in srgb,var(--m0-error) 35%,transparent)}
+.btn-primary{width:100%;min-height:var(--m0-btn-h);background:var(--m0-primary);color:var(--m0-on-primary);border:0;font-size:1.0625rem;box-shadow:var(--m0-shadow-2)}
+.btn-primary[aria-disabled=true]{opacity:.45;box-shadow:none}
+.btn-ok{background:var(--m0-success-bg);color:var(--m0-success);border:1px solid color-mix(in srgb,var(--m0-success) 35%,transparent)}
+.files{display:flex;flex-direction:column;gap:8px;margin-top:var(--m0-space-3)}
+.file{display:flex;align-items:center;gap:10px;padding:6px;border:1px solid var(--m0-border);border-radius:var(--m0-radius-md);background:var(--m0-surface-2)}
+.thumb{flex:0 0 52px;height:52px;border-radius:8px;overflow:hidden;background:var(--m0-border);border:0;padding:0;cursor:pointer}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.file .meta{flex:1;min-width:0}
+.file .meta b{display:block;font:500 var(--m0-fs-xs) var(--m0-font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file .meta span{font-size:var(--m0-fs-xs);color:var(--m0-text-2)}
+.x{flex:0 0 var(--m0-tap);height:var(--m0-tap);border-radius:999px;border:0;background:none;font-size:22px;color:var(--m0-text-2);cursor:pointer}
+
+label.lbl{display:block;font-size:var(--m0-fs-sm);font-weight:600;margin-top:var(--m0-space-4)}
+.field{width:100%;height:var(--m0-input-h);margin-top:6px;padding:0 12px;border-radius:var(--m0-radius-md);border:1px solid var(--m0-border-strong);background:var(--m0-surface-2);color:var(--m0-text);font:16px var(--m0-font-sans)}
+input::placeholder{color:var(--m0-text-muted)}
+input[aria-invalid=true]{border-color:var(--m0-error);border-width:2px}
+.hint{font-size:var(--m0-fs-xs);color:var(--m0-text-2);margin-top:6px}
+.err{font-size:var(--m0-fs-xs);color:var(--m0-error);margin-top:6px;font-weight:600}
+
+.room{font-size:var(--m0-fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--m0-text-2);margin:16px 4px 2px}
+.room:first-child{margin-top:4px}
+.row{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:12px 4px;border:0;border-top:1px solid var(--m0-border);background:none;text-align:left;cursor:pointer}
+.room+.row{border-top:0}
+.row:active{background:var(--m0-surface-2)}
+.ico{flex:0 0 40px;height:40px;border-radius:var(--m0-radius-md);background:var(--m0-surface-2);display:grid;place-items:center;font-size:18px}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;font-weight:600;line-height:1.3}
+.row .t span{display:block;font:var(--m0-fs-xs) var(--m0-font-mono);color:var(--m0-text-2);margin-top:2px}
+.chev{color:var(--m0-text-2);font-size:20px}
+.badge{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;border-radius:var(--m0-radius-sm);background:var(--m0-success-bg);color:var(--m0-success);font-size:var(--m0-fs-xs);font-weight:600;white-space:nowrap}
+.badge.done{background:var(--m0-primary);color:var(--m0-on-primary)}
+.badge.wait{background:var(--m0-surface-2);color:var(--m0-text-2)}
+.badge.warn{background:var(--m0-warning-bg);color:var(--m0-warning)}
+.badge.bad{background:var(--m0-error-bg);color:var(--m0-error)}
+.note{font-size:var(--m0-fs-xs);color:var(--m0-text-2);margin-top:10px}
+.note a{color:var(--m0-accent);font-weight:600}
+
+.progress{margin-top:var(--m0-space-3)}
+.step{display:flex;align-items:center;gap:10px;min-height:36px;color:var(--m0-text-2);font-size:var(--m0-fs-sm)}
+.step i{width:22px;height:22px;border-radius:999px;border:2px solid var(--m0-border-strong);display:grid;place-items:center;font-style:normal;font-size:12px;flex:0 0 22px}
+.step.active{color:var(--m0-text);font-weight:600}
+.step.active i{border-color:var(--m0-accent);border-top-color:transparent;animation:spin .8s linear infinite}
+.step.done{color:var(--m0-text)}
+.step.done i{background:var(--m0-success-bg);border-color:var(--m0-success);color:var(--m0-success)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.track{height:6px;border-radius:999px;background:var(--m0-surface-2);overflow:hidden;margin-top:10px}
+.track div{height:100%;width:0;background:var(--m0-accent);transition:width .3s}
+.logline{font:var(--m0-fs-xs) var(--m0-font-mono);color:var(--m0-text-2);margin-top:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.sticky{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--m0-surface);box-shadow:var(--m0-shadow-sticky);border-top:1px solid var(--m0-border);padding:10px var(--m0-gutter) calc(10px + env(safe-area-inset-bottom))}
+.sticky .in{max-width:var(--m0-content-max);margin:0 auto}
+.sticky .why{font-size:var(--m0-fs-xs);color:var(--m0-text-2);text-align:center;margin-bottom:6px}
+
+.scrim{position:fixed;inset:0;background:rgba(10,14,20,.5);z-index:40;opacity:0;transition:opacity .2s}
+.scrim.show{opacity:1}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;max-width:var(--m0-content-max);margin:0 auto;background:var(--m0-surface);border-radius:18px 18px 0 0;box-shadow:var(--m0-shadow-2);padding:8px var(--m0-gutter) calc(var(--m0-space-4) + env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .25s cubic-bezier(.2,.8,.2,1);max-height:88vh;overflow:auto}
+.sheet.show{transform:none}
+.grab{width:40px;height:5px;border-radius:999px;background:var(--m0-border-strong);margin:4px auto 8px}
+.sheet .head{margin-bottom:8px}
+.close{width:var(--m0-tap);height:var(--m0-tap);border-radius:999px;border:1px solid var(--m0-border);background:var(--m0-surface-2);font-size:20px;cursor:pointer;flex:0 0 auto}
+dl{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:var(--m0-fs-sm);margin:8px 0 16px}
+dt{color:var(--m0-text-2)}dd{margin:0;font-weight:500;min-width:0;overflow-wrap:anywhere}
+dd small{display:block;font-weight:400;color:var(--m0-text-2)}
+.stack{display:flex;flex-direction:column;gap:8px}
+.media-full{width:100%;max-height:60vh;border-radius:var(--m0-radius-md);background:#000;display:block;object-fit:contain}
+.edit{background:var(--m0-surface-2);border-radius:var(--m0-radius-md);padding:12px;margin-bottom:16px}
+.edit .grid2{margin-top:0}
+.edit label{font-size:var(--m0-fs-xs);font-weight:600;color:var(--m0-text-2);display:block}
+.edit .field{background:var(--m0-surface);margin-top:4px}
+.edit .code{margin-top:10px;font-size:var(--m0-fs-sm)}
+.edit .code b{font-family:var(--m0-font-mono)}
+.photos{display:flex;gap:8px;overflow-x:auto;margin-bottom:16px}
+.photos a{flex:0 0 72px;height:72px;border-radius:8px;overflow:hidden;background:var(--m0-border)}
+.photos img{width:100%;height:100%;object-fit:cover;display:block}
+
+.toast{position:fixed;left:50%;bottom:calc(110px + env(safe-area-inset-bottom));transform:translate(-50%,20px);z-index:60;background:var(--m0-text);color:var(--m0-bg);padding:10px 14px;border-radius:var(--m0-radius-md);font-size:var(--m0-fs-sm);font-weight:500;opacity:0;pointer-events:none;transition:all .2s;max-width:calc(100% - 32px);display:flex;align-items:center;gap:12px;box-shadow:var(--m0-shadow-2)}
+body.lock .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
+.toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast button{background:none;border:0;color:inherit;font-weight:700;text-decoration:underline;min-height:var(--m0-tap);padding:0 4px;cursor:pointer}
+
+@media (min-width:1024px){.wrap{max-width:1120px}main{display:grid;grid-template-columns:1fr 1fr;gap:var(--m0-space-6);align-items:start}}
+</style>
 </head>
 <body>
-<main>
-  <h1>Manifest <span>Zero</span></h1>
-  <p class="sub">Walk the site room by room, photograph the labels. We build the inventory, find each SDS, and email it.</p>
+<div class="wrap">
+  <header class="hero">
+    <div class="bar">
+      <button class="mark" id="markBtn" aria-label="Manifest0-Ai, back to top">Manifest0<b>-Ai</b></button>
+      <button class="pill" id="themeBtn" aria-label="Switch theme">Dark</button>
+    </div>
+    <h1>Walk the site. Get the waste list and SDS sheets in minutes.</h1>
+    <p>Label photos in, room by room. Inventory with container counts and matched SDS out, emailed to your team and client.</p>
+    <div class="rule"></div>
+  </header>
 
-  <!-- 1. Start a visit -->
-  <form id="startForm" class="card">
-    <label for="userEmail">Your email</label>
-    <input id="userEmail" name="userEmail" type="email" required autocomplete="email">
-    <label for="clientEmail">Client email</label>
-    <input id="clientEmail" name="clientEmail" type="email" required>
-    <label for="siteName">Site name <small>(optional)</small></label>
-    <input id="siteName" name="siteName" type="text" placeholder="e.g. Acme Warehouse, 12 Main St">
-    <button type="submit">Start site visit</button>
-    <div class="err" id="startErr"></div>
-  </form>
-
-  <!-- 2. The visit -->
-  <section id="visitView" hidden>
-    <div class="card">
-      <div class="head">
-        <div class="status"><div class="dot" id="dot"></div><span id="statusText"></span></div>
-        <small id="siteLabel"></small>
+  <main>
+    <section class="card" aria-labelledby="hiw" id="hiwCard">
+      <div class="eyebrow" id="hiw">How it works</div>
+      <div class="deck" id="deck" aria-roledescription="carousel">
+        <div class="slide" role="group" aria-label="Slide 1 of 4"><div class="num">1</div><div><h4>Snap the labels, room by room</h4><p>One photo per label. For a packed box, the box plus one item from it.</p></div></div>
+        <div class="slide" role="group" aria-label="Slide 2 of 4"><div class="num">2</div><div><h4>AI reads the labels</h4><p>Product, hazards, DOT class and container counts are pulled out.</p></div></div>
+        <div class="slide" role="group" aria-label="Slide 3 of 4"><div class="num">3</div><div><h4>SDS matched for each item</h4><p>The manufacturer's Safety Data Sheet is found and saved, so repeats are instant.</p></div></div>
+        <div class="slide" role="group" aria-label="Slide 4 of 4"><div class="num">4</div><div><h4>Report emailed to your team and client</h4><p>Inventory with EPA container codes, plus the SDS PDFs attached.</p></div></div>
       </div>
-      <div class="log" id="log"></div>
+      <div class="deck-nav">
+        <button class="arrow" id="prev" aria-label="Previous slide">&#8249;</button>
+        <div class="dots" id="dots"></div>
+        <button class="arrow" id="next" aria-label="Next slide">&#8250;</button>
+      </div>
+    </section>
+
+    <div>
+      <section class="card" aria-labelledby="up" id="uploadCard">
+        <div class="head"><h2 id="up">Add photos</h2><span class="eyebrow" id="fileCount">0 photos</span></div>
+
+        <label class="lbl" for="room">Room</label>
+        <input id="room" class="field" type="text" list="rooms" autocomplete="off" placeholder="e.g. Garage, Lab 2, Janitor closet">
+        <datalist id="rooms"></datalist>
+
+        <div class="drop" id="drop">
+          <strong>Drop photos here</strong>
+          <span class="types">JPG, PNG or HEIC. One clear photo per label.</span>
+          <div class="grid2">
+            <label class="btn btn-2" for="photoCam" role="button" tabindex="0">&#128247; Take photo</label>
+            <label class="btn btn-2" for="photoLib" role="button" tabindex="0">&#128444; From library</label>
+          </div>
+        </div>
+        <input class="sr" type="file" id="photoCam" accept="image/*" capture="environment">
+        <input class="sr" type="file" id="photoLib" accept="image/*" multiple>
+        <div class="files" id="files"></div>
+        <button class="btn btn-ghost" id="clearFiles" hidden style="margin-top:6px;padding:0 4px">Remove all photos</button>
+
+        <div id="setup">
+          <label class="lbl" for="site">Site name <span style="font-weight:400;color:var(--m0-text-2)">(optional)</span></label>
+          <input id="site" class="field" type="text" autocomplete="off" placeholder="e.g. Riverside Clinic">
+          <label class="lbl" for="email">Send report to</label>
+          <input id="email" class="field" type="email" inputmode="email" autocomplete="email" multiple placeholder="you@company.com, client@site.com" aria-describedby="emailHint emailErr">
+          <div class="hint" id="emailHint">You first, then the client. Separate with commas.</div>
+          <div class="err" id="emailErr" role="alert" hidden></div>
+        </div>
+        <div class="note" id="sendingTo" hidden></div>
+      </section>
+
+      <section class="card" id="progressCard" hidden aria-live="polite">
+        <div class="head"><h2>Working on it</h2><span class="tag" id="progTag"></span></div>
+        <div class="progress">
+          <div class="step" data-s="0"><i></i><span>Uploading <span id="upN"></span></span></div>
+          <div class="step" data-s="1"><i></i><span>Reading labels</span></div>
+          <div class="step" data-s="2"><i></i><span>Matching SDS</span></div>
+          <div class="step" data-s="3" id="emailStep" hidden><i></i><span>Emailing report</span></div>
+          <div class="track"><div id="bar"></div></div>
+        </div>
+        <div class="logline" id="logline"></div>
+        <div class="note">You can keep adding photos while this runs.</div>
+      </section>
+
+      <section class="card" id="resultsCard" hidden aria-labelledby="resH">
+        <div class="head"><h2 id="resH">Inventory</h2><span class="tag" id="resTag"></span></div>
+        <div class="note" id="resNote"></div>
+        <div id="rows" style="margin-top:8px"></div>
+        <div class="grid2" id="resActions">
+          <button class="btn btn-2" id="emailBtn">&#9993; Email report</button>
+          <button class="btn btn-2" id="addMore">&#10133; Add photos</button>
+        </div>
+      </section>
     </div>
+  </main>
+</div>
 
-    <form id="photoForm" class="card">
-      <h2>Add photos</h2>
-      <label for="room">Room / area</label>
-      <input id="room" type="text" placeholder="e.g. Garage, Kitchen, Storage room 2" required>
-      <div class="drop" id="drop">Tap to take or choose label photos<br><small>Overlapping photos are fine, up to 12 per upload</small></div>
-      <input id="images" type="file" accept="image/*" multiple hidden>
-      <div class="thumbs" id="thumbs"></div>
-      <button id="uploadBtn" type="submit">Upload photos</button>
-      <div class="err" id="photoErr"></div>
-    </form>
+<div class="sticky"><div class="in">
+  <div class="why" id="why"></div>
+  <button class="btn btn-primary" id="mainBtn" aria-disabled="true">Send to Muse &#10148;</button>
+</div></div>
 
-    <div class="card table-wrap">
-      <table>
-        <thead><tr><th>Product</th><th>Containers</th><th>Signal</th><th>Hazards</th><th>SDS</th></tr></thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </div>
-
-    <button id="finishBtn" class="secondary">Finish visit &amp; email report</button>
-  </section>
-</main>
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+  <div class="grab"></div>
+  <div class="head"><h2 id="sheetTitle"></h2><button class="close" id="sheetClose" aria-label="Close">&#215;</button></div>
+  <div id="sheetBody"></div>
+</div>
+<div class="toast" id="toast" role="status"><span id="toastMsg"></span><button id="toastAct" hidden></button></div>
 
 <script>
-  const $ = (id) => document.getElementById(id);
-  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c]);
-  const store = { get: (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } },
-                  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
-  let visitId = new URLSearchParams(location.search).get("visit");
-  let files = [];
-  let pollTimer;
-  let lastRows = "";
+(()=>{
+const $=s=>document.querySelector(s), root=document.documentElement;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=b=>b<1024?b+' B':b<1048576?(b/1024).toFixed(0)+' KB':(b/1048576).toFixed(1)+' MB';
+const plural=(n,w)=>`${n} ${w}${n===1?'':'s'}`;
+const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
 
-  $("userEmail").value = store.get("userEmail");
+/* ---------- toast ---------- */
+let tt;function toast(msg,act,fn){$('#toastMsg').textContent=msg;const a=$('#toastAct');
+ if(act){a.hidden=false;a.textContent=act;a.onclick=()=>{fn();hideT()}}else a.hidden=true;
+ $('#toast').classList.add('show');clearTimeout(tt);tt=setTimeout(hideT,act?5000:2800)}
+function hideT(){$('#toast').classList.remove('show')}
 
-  // ---- 1. start a visit ----
-  $("startForm").onsubmit = async (e) => {
-    e.preventDefault();
-    const body = Object.fromEntries(new FormData($("startForm")));
-    store.set("userEmail", body.userEmail);
-    const res = await fetch("/api/visits", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    const data = await res.json();
-    if (!res.ok) return ($("startErr").textContent = data.error || "Could not start visit.");
-    visitId = data.visitId;
-    history.pushState(null, "", `?visit=${visitId}`);
-    showVisit();
-  };
+/* ---------- theme ---------- */
+const tb=$('#themeBtn');
+function syncTheme(){const d=root.getAttribute('data-theme')==='dark';tb.textContent=d?'☀ Light':'☾ Dark';
+ document.querySelector('meta[name=theme-color]').content=d?'#252C32':'#041D3E'}
+tb.onclick=()=>{const n=root.getAttribute('data-theme')==='dark'?'light':'dark';root.setAttribute('data-theme',n);store.set('m0-theme',n);syncTheme()};
+syncTheme();
+$('#markBtn').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
 
-  // ---- 2. add photos, one room at a time ----
-  $("drop").onclick = () => $("images").click();
-  $("images").onchange = (e) => {
-    files = [...files, ...e.target.files].slice(0, 12);
-    $("thumbs").innerHTML = "";
-    for (const f of files) {
-      const img = document.createElement("img");
-      img.src = URL.createObjectURL(f);
-      $("thumbs").append(img);
-    }
-    e.target.value = "";
-  };
+/* ---------- bottom sheet ---------- */
+let lastFocus=null,sheetFor=null,sheetGen=0;
+function openSheet(title,html,forId){hideT();if($('#sheet').hidden)lastFocus=document.activeElement;sheetFor=forId||null;sheetGen++;
+ $('#sheetTitle').textContent=title;$('#sheetBody').innerHTML=html;
+ const sc=$('#scrim'),sh=$('#sheet');sc.hidden=false;sh.hidden=false;document.body.classList.add('lock');
+ requestAnimationFrame(()=>{sc.classList.add('show');sh.classList.add('show');$('#sheetClose').focus()})}
+function closeSheet(){const sc=$('#scrim'),sh=$('#sheet');sc.classList.remove('show');sh.classList.remove('show');
+ document.body.classList.remove('lock');sheetFor=null;const gen=sheetGen;
+ setTimeout(()=>{if(gen!==sheetGen)return;sc.hidden=true;sh.hidden=true;$('#sheetBody').innerHTML=''},250);
+ if(lastFocus&&lastFocus.focus)lastFocus.focus()}
+$('#sheetClose').onclick=closeSheet;$('#scrim').onclick=closeSheet;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet').hidden)closeSheet()});
 
-  $("photoForm").onsubmit = async (e) => {
-    e.preventDefault();
-    $("photoErr").textContent = "";
-    if (!files.length) return ($("photoErr").textContent = "Add at least one photo.");
-    const fd = new FormData();
-    fd.append("room", $("room").value);
-    for (const f of files) fd.append("images", f);
-    $("uploadBtn").disabled = true;
-    $("uploadBtn").textContent = "Uploading…";
-    const res = await fetch(`/api/visits/${visitId}/photos`, { method: "POST", body: fd });
-    const data = await res.json();
-    $("uploadBtn").disabled = false;
-    $("uploadBtn").textContent = "Upload photos";
-    if (!res.ok) return ($("photoErr").textContent = data.error || "Upload failed.");
-    files = [];
-    $("thumbs").innerHTML = "";
-    refresh();
-  };
+/* ---------- how it works deck ---------- */
+const deck=$('#deck'),dots=$('#dots'),N=deck.children.length;
+for(let i=0;i<N;i++){const b=document.createElement('button');b.innerHTML='<span></span>';b.setAttribute('aria-label','Go to slide '+(i+1));b.onclick=()=>go(i);dots.appendChild(b)}
+const stepW=()=>deck.children[0].offsetWidth+12, idx=()=>Math.round(deck.scrollLeft/stepW());
+function go(i){i=Math.max(0,Math.min(N-1,i));deck.scrollTo({left:i*stepW(),behavior:'smooth'});mark(i)}
+function mark(k){k=k??idx();[...dots.children].forEach((d,j)=>d.setAttribute('aria-current',j===k));$('#prev').disabled=k===0;$('#next').disabled=k===N-1}
+let st;deck.addEventListener('scroll',()=>{clearTimeout(st);st=setTimeout(()=>mark(),60)},{passive:true});
+$('#prev').onclick=()=>go(idx()-1);$('#next').onclick=()=>go(idx()+1);mark(0);
 
-  // ---- 3. finish ----
-  $("finishBtn").onclick = async () => {
-    if (!confirm("Finish the visit and email the report to you and the client?")) return;
-    $("finishBtn").disabled = true;
-    const res = await fetch(`/api/visits/${visitId}/finish`, { method: "POST" });
-    if (!res.ok) { $("finishBtn").disabled = false; alert((await res.json()).error); }
-    refresh();
-  };
+/* ---------- picked photos (not uploaded yet) ---------- */
+let files=[],uid=0;
+function addFiles(list){let added=0,skipped=0;
+ for(const f of list){if(!(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name))){skipped++;continue}
+  files.push({id:++uid,file:f,url:URL.createObjectURL(f)});added++}
+ renderFiles();update();
+ if(added)toast(plural(added,'photo')+' added'+(skipped?`, ${skipped} skipped (not a photo)`:''));
+ else if(skipped)toast('Only photos can be added')}
+['photoCam','photoLib'].forEach(id=>{const el=document.getElementById(id);el.addEventListener('change',()=>{addFiles(el.files);el.value=''})});
+document.querySelectorAll('label[role=button]').forEach(l=>l.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();document.getElementById(l.htmlFor).click()}}));
+function renderFiles(){
+ $('#files').innerHTML=files.map(f=>`<div class="file" data-id="${f.id}">
+   <button class="thumb" data-act="view" aria-label="Preview ${esc(f.file.name)}"><img src="${f.url}" alt=""></button>
+   <div class="meta"><b>${esc(f.file.name)}</b><span>Photo · ${fmt(f.file.size)}</span></div>
+   <button class="x" data-act="rm" aria-label="Remove ${esc(f.file.name)}">&#215;</button></div>`).join('');
+ $('#fileCount').textContent=plural(files.length,'photo');$('#clearFiles').hidden=files.length<2}
+$('#files').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+ const id=+b.closest('.file').dataset.id,i=files.findIndex(f=>f.id===id),f=files[i];
+ if(b.dataset.act==='rm'){files.splice(i,1);renderFiles();update();toast('Removed '+f.file.name,'Undo',()=>{files.splice(i,0,f);renderFiles();update()})}
+ else{openSheet(f.file.name,`<img class="media-full" src="${f.url}" alt=""><p class="note">Photo · ${fmt(f.file.size)}</p>
+  <div class="grid2"><button class="btn btn-danger" id="pvRm">Remove</button><button class="btn btn-2" id="pvOk">Keep</button></div>`);
+  $('#pvRm').onclick=()=>{closeSheet();files=files.filter(x=>x!==f);renderFiles();update()};$('#pvOk').onclick=closeSheet}});
+$('#clearFiles').onclick=()=>{const old=files;files=[];renderFiles();update();toast('All photos removed','Undo',()=>{files=old;renderFiles();update()})};
+const drop=$('#drop');
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();if(ev==='dragleave'&&drop.contains(e.relatedTarget))return;drop.classList.remove('over')}));
+drop.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
+window.addEventListener('dragover',e=>e.preventDefault());window.addEventListener('drop',e=>e.preventDefault());
 
-  // ---- live view ----
-  function showVisit() {
-    $("startForm").hidden = true;
-    $("visitView").hidden = false;
-    refresh();
-  }
+/* ---------- recipients ---------- */
+const email=$('#email'),RE=/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]{2,}$/;let touched=false;
+const lead=store.get('m0-lead');if(lead)email.value=lead+', ';
+const parseEmails=()=>email.value.split(/[,;\s]+/).map(s=>s.trim()).filter(Boolean);
+function emailState(){const l=parseEmails();if(!l.length)return{ok:false,msg:'Enter at least one email.'};
+ const bad=l.filter(e=>!RE.test(e));return bad.length?{ok:false,msg:'Check this address: '+bad.join(', ')}:{ok:true,list:l}}
+email.addEventListener('input',update);email.addEventListener('blur',()=>{if(email.value.trim())touched=true;update()});
 
-  async function refresh() {
-    clearTimeout(pollTimer);
-    const res = await fetch(`/api/visits/${visitId}`);
-    if (!res.ok) return ($("statusText").textContent = "Visit not found");
-    const { visit, products, photos, log } = await res.json();
+/* ---------- the visit (server state) ---------- */
+let visitId=new URLSearchParams(location.search).get('visit'), data=null, uploading=null, pollTimer=null, lastRows='';
+const isOpen=()=>!data||data.visit.status==='open';
+const sdsPending=()=>data?data.products.filter(p=>p.sds_status==='pending').length:0;
+const busy=()=>!!uploading||!!data&&(data.photos.pending>0||sdsPending()>0||data.visit.status==='finishing');
 
-    const sdsPending = products.filter((p) => p.sds_status === "pending").length;
-    const busy = photos.pending > 0 || sdsPending > 0;
-    let text, dot;
-    if (visit.status === "done") [text, dot] = ["Done — report emailed", "done"];
-    else if (visit.status === "failed") [text, dot] = [`Failed: ${visit.error}`, "failed"];
-    else if (photos.pending) [text, dot] = [`Reading ${photos.pending} photo(s)…`, "busy"];
-    else if (sdsPending) [text, dot] = [`Finding SDS for ${sdsPending} product(s)…`, "busy"];
-    else if (visit.status === "finishing") [text, dot] = ["Sending report…", "busy"];
-    else [text, dot] = [`${products.length} product(s) so far — add more photos or finish`, ""];
-    $("statusText").textContent = text;
-    $("dot").className = `dot ${dot}`;
-    $("siteLabel").textContent = visit.site_name || "";
+async function api(path,opts){const r=await fetch(path,opts);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong ('+r.status+')');return j}
+async function load(){if(!visitId)return;
+ try{data=await api('/api/visits/'+visitId)}catch(e){toast(e.message);return}
+ render();clearTimeout(pollTimer);if(busy())pollTimer=setTimeout(load,2500)}
 
-    $("log").innerHTML = log.map((l) => esc(l.slice(11, 19) + l.slice(24))).join("<br>");
-    $("log").scrollTop = $("log").scrollHeight;
+/* Phone photos are 3-5 MB; shrink to 2000px JPEG before upload (labels stay readable). */
+async function shrink(file){
+ if(file.size<1.5e6)return file;
+ try{const bmp=await createImageBitmap(file),s=Math.min(1,2000/Math.max(bmp.width,bmp.height));
+  const c=document.createElement('canvas');c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);
+  c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.85));
+  return blob?new File([blob],file.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):file}
+ catch(e){return file}}
 
-    const open = visit.status === "open";
-    $("photoForm").hidden = !open;
-    $("finishBtn").hidden = !open;
-    $("finishBtn").disabled = false;
+async function send(){
+ const s=emailState();
+ if(!files.length){toast('Add at least 1 photo first');$('#uploadCard').scrollIntoView({behavior:'smooth',block:'start'});return}
+ if(!visitId&&!s.ok){touched=true;update();toast('Enter a valid email first');email.focus();return}
+ const room=$('#room').value.trim();
+ if(!room){toast('Which room is this? Enter a room name');$('#room').focus();return}
+ const batch=files;files=[];renderFiles();
+ uploading={done:0,total:batch.length};render();
+ $('#progressCard').scrollIntoView({behavior:'smooth',block:'center'});
+ try{
+  if(!visitId){
+   const r=await api('/api/visits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recipients:s.list,siteName:$('#site').value})});
+   visitId=r.visitId;store.set('m0-lead',s.list[0]);history.replaceState(null,'','?visit='+visitId)}
+  for(let i=0;i<batch.length;i+=12){   // the server takes up to 12 photos per upload
+   const fd=new FormData();fd.append('room',room);
+   for(const f of batch.slice(i,i+12))fd.append('images',await shrink(f.file));
+   await api(`/api/visits/${visitId}/photos`,{method:'POST',body:fd});
+   uploading.done=Math.min(batch.length,i+12);render()}
+  batch.forEach(f=>URL.revokeObjectURL(f.url));store.set('m0-room',room);
+  toast(plural(batch.length,'photo')+' sent to Muse');
+ }catch(e){files=batch.concat(files);renderFiles();toast(e.message)}
+ uploading=null;await load();update()}
 
-    // Redraw the table only when something changed, and never while the technician is editing a count in it.
-    const editing = $("rows").contains(document.activeElement);
-    const snapshot = JSON.stringify([products, open]);
-    if (!editing && snapshot !== lastRows) {
-      lastRows = snapshot;
-      renderRows(products, open);
-    }
-    if (busy || visit.status === "finishing") pollTimer = setTimeout(refresh, 2000);
-  }
+async function patch(id,body,msg){
+ try{await api('/api/products/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(msg)toast(msg);await load();return true}
+ catch(e){toast(e.message);return false}}
 
-  const CONTAINER_TYPES = ["drum", "pail", "jug", "bottle", "can", "aerosol", "box", "bag", "tote", "cylinder", "tube", "other"];
+function emailReport(){
+ const n=data.products.length,unchecked=data.products.filter(p=>!p.confirmed).length,list=JSON.parse(data.visit.recipients||'[]');
+ openSheet('Email the report?',`<p style="font-size:14px">The inventory (${plural(n,'product')}) and the SDS PDFs go to <b>${esc(list.join(', '))}</b>.</p>
+  <ul style="font-size:14px;margin:10px 0 16px 18px;color:var(--m0-text-2)">
+  ${busy()?'<li>Photos or SDS searches are still running. The email goes out as soon as they finish.</li>':''}
+  ${unchecked?`<li>${plural(unchecked,'item')} not confirmed yet.</li>`:''}
+  <li>After sending, the inventory can't be changed.</li></ul>
+  <div class="grid2"><button class="btn btn-2" id="eNo">Not yet</button><button class="btn btn-ok" id="eYes">&#9993; Send report</button></div>`);
+ $('#eNo').onclick=closeSheet;
+ $('#eYes').onclick=async()=>{closeSheet();try{await api(`/api/visits/${visitId}/finish`,{method:'POST'});toast('Report is on its way');await load()}catch(e){toast(e.message)}}}
 
-  const MATERIALS = ["metal", "plastic", "fiber", "wood", "glass", "unknown"];
-  const optionsFor = (list, value) => list.map((t) => `<option ${t === value ? "selected" : ""}>${t}</option>`).join("");
+function newWalk(){
+ clearTimeout(pollTimer);visitId=null;data=null;lastRows='';files.forEach(f=>URL.revokeObjectURL(f.url));files=[];
+ history.replaceState(null,'',location.pathname);const l=store.get('m0-lead');email.value=l?l+', ':'';$('#site').value='';$('#room').value='';touched=false;
+ renderFiles();render();go(0);window.scrollTo({top:0,behavior:'smooth'});toast('New walk started')}
 
-  function containersCell(p, open) {
-    const size = p.container_size ? `<br><small>${esc(p.container_size)}</small>` : "";
-    const note = p.count_note ? `<br><small class="note">${esc(p.count_note)}</small>` : "";
-    const code = p.manifest.code
-      ? `<br><small>Manifest: <b class="code">${p.quantity} ${p.manifest.code}</b></small>`
-      : `<br><small>Manifest: ${esc(p.manifest.hint)}</small>`;
-    const itemSize = p.inner_size ? `, ${esc(p.inner_size)} each` : "";
-    if (!open) {
-      const contents = p.inner_type
-        ? `<br><small>contains ${p.inner_count != null ? "~" + p.inner_count + " " : ""}${esc(p.inner_type)}${itemSize}</small>` : "";
-      return `<b>${p.quantity} × ${esc(p.container_material)} ${esc(p.container_type)}</b>${contents}${code}${size}${note}`;
-    }
-    const contents = p.inner_type
-      ? `<div class="count contents">contains ~<input type="number" min="0" value="${p.inner_count ?? ""}"
-           aria-label="Items inside"> ${esc(p.inner_type)}${itemSize}</div>` : "";
-    return `<div class="count" data-id="${p.id}">
-        <input type="number" min="1" value="${p.quantity}" aria-label="Number of containers"> ×
-        <select aria-label="Container material">${optionsFor(MATERIALS, p.container_material)}</select>
-        <select aria-label="Container type">${optionsFor(CONTAINER_TYPES, p.container_type)}</select>
-        ${p.count_edited ? `<span class="saved" title="Corrected by technician">✓</span>` : ""}
-        ${contents}
-      </div>${code}${size}${note}`;
-  }
+/* ---------- rendering ---------- */
+const ICON={drum:'&#128738;',pail:'&#129699;',jug:'&#129524;',bottle:'&#129524;',can:'&#129387;',aerosol:'&#129387;',box:'&#128230;',bag:'&#128092;',tote:'&#128738;',cylinder:'&#129519;',tube:'&#129514;',other:'&#129514;'};
+const TYPES=['drum','pail','jug','bottle','can','aerosol','box','bag','tote','cylinder','tube','other'];
+const MATERIALS=['metal','plastic','fiber','wood','glass','unknown'];
+const contents=p=>p.inner_type||p.inner_count!=null?`contains ${p.inner_count!=null?'~'+p.inner_count+' ':''}${p.inner_type||'items'}${p.inner_size?', '+p.inner_size+' each':''}`:'';
+const qtyText=p=>`${p.quantity} × ${p.container_type}${p.container_size?' · '+p.container_size:''}`;
+function badge(p){
+ if(p.confirmed)return'<span class="badge done">✓ Confirmed</span>';
+ return{pending:'<span class="badge wait">Finding SDS…</span>',found:'<span class="badge">✓ SDS found</span>',
+  page_only:'<span class="badge warn">SDS page</span>',not_found:'<span class="badge bad">No SDS</span>'}[p.sds_status]||''}
 
-  // Save a corrected count/type as soon as it's changed.
-  $("rows").addEventListener("change", async (e) => {
-    const box = e.target.closest(".count[data-id]");
-    if (!box) return;
-    const quantity = Number(box.querySelector('[aria-label="Number of containers"]').value);
-    const containerMaterial = box.querySelector('[aria-label="Container material"]').value;
-    const containerType = box.querySelector('[aria-label="Container type"]').value;
-    const inner = box.querySelector('[aria-label="Items inside"]');
-    const body = { quantity, containerType, containerMaterial };
-    if (inner) body.innerCount = inner.value === "" ? null : Number(inner.value);
-    const res = await fetch(`/api/products/${box.dataset.id}`, {
-      method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
-    });
-    if (!res.ok) alert((await res.json()).error);
-    document.activeElement.blur();
-    refresh();
-  });
+function render(){
+ const open=isOpen(),v=data&&data.visit;
+ $('#hiwCard').hidden=!!visitId;
+ $('#setup').hidden=!!visitId;
+ $('#uploadCard').hidden=!open;
+ if(v){const list=JSON.parse(v.recipients||'[]');$('#sendingTo').hidden=false;
+  $('#sendingTo').innerHTML=`${v.site_name?'<b>'+esc(v.site_name)+'</b> · ':''}Report goes to ${esc(list.join(', '))}`}else $('#sendingTo').hidden=true;
+ const rooms=data?[...new Set(data.products.map(p=>p.room))]:[];
+ $('#rooms').innerHTML=rooms.map(r=>`<option value="${esc(r)}">`).join('');
 
-  function renderRows(products, open) {
-    let room = null;
-    $("rows").innerHTML = products.length ? products.map((p) => {
-      const header = p.room !== room ? `<tr class="room"><td colspan="5">${esc((room = p.room))}</td></tr>` : "";
-      const sds = p.sds_key ? `<a href="/api/files/${encodeURIComponent(p.sds_key)}" target="_blank">PDF</a>`
-        : p.sds_page_url || p.sds_url ? `<a href="${esc(p.sds_page_url || p.sds_url)}" target="_blank" rel="noopener">Page</a>` : "";
-      const label = p.sds_source === "library" ? "library" : p.sds_status.replace("_", " ");
-      return header + `<tr>
-        <td><b>${esc(p.product_name)}</b><br><small>${esc(p.manufacturer)}${p.product_code ? " · " + esc(p.product_code) : ""}</small></td>
-        <td>${containersCell(p, open)}</td>
-        <td>${esc(p.signal_word)}</td>
-        <td><small>${JSON.parse(p.hazard_statements).map(esc).join("<br>")}</small></td>
-        <td><span class="pill ${p.sds_status}">${label}</span> ${sds}</td>
-      </tr>`;
-    }).join("") : `<tr><td colspan="5" class="empty">No products yet. Add photos of the first room.</td></tr>`;
-  }
+ // progress
+ const showProg=busy();$('#progressCard').hidden=!showProg;
+ if(showProg){
+  const reading=data?data.photos.pending:0,sds=sdsPending(),finishing=v&&v.status==='finishing';
+  const stage=uploading?0:reading?1:sds?2:finishing?3:4;
+  $('#emailStep').hidden=!finishing;
+  document.querySelectorAll('.step').forEach(s=>{const i=+s.dataset.s;s.className='step'+(i<stage?' done':i===stage?' active':'');s.querySelector('i').textContent=i<stage?'✓':''});
+  $('#upN').textContent=uploading?`${uploading.done}/${plural(uploading.total,'photo')}`:'';
+  $('#progTag').textContent=uploading?'Uploading':reading?plural(reading,'photo')+' left':sds?plural(sds,'SDS')+' left':'Sending';
+  const steps=finishing?4:3;$('#bar').style.width=Math.max(8,Math.min(stage,steps)/steps*100+(uploading?uploading.done/uploading.total*100/steps:0))+'%';
+  const log=data&&data.log.at(-1);$('#logline').textContent=log?log.replace(/^\S+ /,''):''}
 
-  if (visitId) showVisit();
+ // inventory
+ const products=data?data.products:[];
+ $('#resultsCard').hidden=!data||(!products.length&&open);
+ if(data){
+  const failed=v.status==='failed',done=v.status==='done',saved=data.log.map(l=>l.match(/Report: (\/api\/files\/\S+)/)).filter(Boolean).at(-1);
+  $('#resTag').className='tag'+(failed?' warn':'');
+  $('#resTag').textContent=done?(v.email_sent_at?'Emailed':'Saved'):failed?'Email failed':v.status==='finishing'?'Sending':plural(products.length,'product');
+  $('#resNote').innerHTML=done&&v.email_sent_at?`Emailed to ${esc(JSON.parse(v.recipients||'[]').join(', '))}.`
+   :done&&saved?`Email isn't set up yet, so the report was saved instead: <a href="${esc(saved[1])}" target="_blank">open report</a>.`
+   :failed?`The email didn't go out: ${esc(v.error)}`
+   :open?'Tap an item to check its count, container and SDS.':'';
+  const snap=JSON.stringify(products)+open;
+  if(snap!==lastRows){lastRows=snap;let html='',room=null;
+   for(const p of products){if(p.room!==room){room=p.room;html+=`<div class="room">${esc(room)}</div>`}
+    html+=`<button class="row" data-id="${p.id}"><div class="ico">${ICON[p.container_type]||ICON.other}</div>
+     <div class="t"><b>${esc(p.product_name)}</b><span>${esc(qtyText(p))}${contents(p)?'<br>'+esc(contents(p)):''}</span></div>${badge(p)}<span class="chev">&#8250;</span></button>`}
+   $('#rows').innerHTML=html||'<p class="note">Nothing found yet.</p>'}
+  $('#resActions').hidden=!open}
+ update()}
+
+/* sticky button: Send to Muse when photos are picked, Email report during a visit, Start new walk when done */
+let mode='send';
+function update(){
+ const s=emailState(),showErr=touched&&!s.ok&&!visitId;email.setAttribute('aria-invalid',showErr);
+ $('#emailErr').hidden=!showErr;$('#emailErr').textContent=showErr?s.msg:'';
+ const btn=$('#mainBtn'),why=$('#why'),open=isOpen();
+ if(uploading){mode='busy';btn.textContent='Uploading…';btn.setAttribute('aria-disabled',true);why.textContent=`Sending ${plural(uploading.total,'photo')} to Muse`;return}
+ if(files.length||(!visitId)){mode='send';btn.innerHTML='Send to Muse &#10148;';
+  const ready=files.length>0&&(visitId||s.ok);btn.setAttribute('aria-disabled',!ready);
+  why.textContent=ready?`${plural(files.length,'photo')} ready${$('#room').value.trim()?' · '+$('#room').value.trim():''}`:
+   !files.length&&!visitId&&!s.ok?'Add at least 1 photo and a valid email':!files.length?'Add at least 1 photo':'Enter a valid email to send the report';return}
+ if(open){mode='email';btn.innerHTML='&#9993; Email report';const n=data?data.products.length:0;btn.setAttribute('aria-disabled',!n);
+  why.textContent=n?`${plural(n,'product')} · add more photos or send the report`:'Waiting for the first results';return}
+ mode='new';btn.textContent='Start new walk';btn.setAttribute('aria-disabled',false);
+ why.textContent=data.visit.status==='finishing'?'Sending the report…':data.visit.status==='failed'?'Email failed':'Report done'}
+$('#room').addEventListener('input',update);
+$('#mainBtn').onclick=()=>{if($('#mainBtn').getAttribute('aria-disabled')==='true'&&mode!=='send')return;
+ if(mode==='send')send();else if(mode==='email')emailReport();else if(mode==='new')newWalk()};
+$('#emailBtn').onclick=()=>data&&data.products.length?emailReport():toast('Nothing to send yet');
+$('#addMore').onclick=()=>{$('#uploadCard').scrollIntoView({behavior:'smooth',block:'start'});$('#room').focus()};
+
+/* ---------- product detail sheet ---------- */
+$('#rows').addEventListener('click',e=>{const b=e.target.closest('.row');if(b)detail(b.dataset.id)});
+function detail(id){
+ const p=data.products.find(x=>x.id===id);if(!p)return;const open=isOpen();
+ const ing=JSON.parse(p.ingredients),haz=JSON.parse(p.hazard_statements),photos=JSON.parse(p.photo_keys);
+ const m=p.manifest||{},packed=p.inner_type||p.container_type==='box'||p.container_type==='drum';
+ const sdsLink=p.sds_key?`/api/files/${p.sds_key}`:p.sds_page_url||p.sds_url;
+ const sdsText={pending:'Searching…',found:p.sds_source==='library'?'Found (from library)':'Found',page_only:'Manufacturer page only',not_found:'Not found'}[p.sds_status];
+ const opt=(list,cur)=>list.map(x=>`<option${x===cur?' selected':''}>${x}</option>`).join('');
+ openSheet(p.product_name,`
+  ${photos.length?`<div class="photos">${photos.map(k=>`<a href="/api/files/${encodeURI(k)}" target="_blank"><img src="/api/files/${encodeURI(k)}" alt="Label photo" loading="lazy"></a>`).join('')}</div>`:''}
+  <dl>
+   ${p.manufacturer?`<dt>Manufacturer</dt><dd>${esc(p.manufacturer)}</dd>`:''}
+   <dt>Ingredient</dt><dd>${ing.length?ing.map(esc).join('<br>'):'Not on label'}</dd>
+   <dt>Hazard class</dt><dd>${p.hazard_class?esc(p.hazard_class):'Not clear from label'}${p.un_number?' · '+esc(p.un_number):''}</dd>
+   ${p.signal_word&&p.signal_word!=='none'?`<dt>Signal word</dt><dd>${esc(p.signal_word)}</dd>`:''}
+   ${haz.length?`<dt>Hazards</dt><dd><small>${haz.map(esc).join('<br>')}</small></dd>`:''}
+   <dt>Room</dt><dd>${esc(p.room)}</dd>
+   <dt>SDS</dt><dd>${esc(sdsText)}</dd>
+   <dt>Status</dt><dd>${p.confirmed?'Confirmed':'Needs review'}</dd>
+  </dl>
+  ${open?`<div class="edit">
+   <div class="grid2"><div><label for="eQty">Containers</label><input id="eQty" class="field" type="number" min="1" inputmode="numeric" value="${p.quantity}"></div>
+    <div><label for="eType">Type</label><select id="eType" class="field">${opt(TYPES,p.container_type)}</select></div></div>
+   <div class="grid2" style="margin-top:8px"><div><label for="eMat">Material</label><select id="eMat" class="field">${opt(MATERIALS,p.container_material)}</select></div>
+    ${packed?`<div><label for="eInner">Items inside</label><input id="eInner" class="field" type="number" min="0" inputmode="numeric" value="${p.inner_count??''}" placeholder="${p.inner_type?'~':'none'}"></div>`:''}</div>
+   <div class="code">${p.container_size?esc(p.container_size)+(contents(p)?' · ':''):''}${esc(contents(p))}
+    <div style="margin-top:4px">Manifest (Item 10): ${m.code?`<b>${p.quantity} ${esc(m.code)}</b>`:`<span style="color:var(--m0-text-2)">${esc(m.hint)}</span>`}${p.count_edited?' · edited':''}</div>
+    ${p.count_note?`<div class="note" style="margin-top:4px">${esc(p.count_note)}</div>`:''}</div>
+  </div>`:`<dl style="margin-top:-8px"><dt>Containers</dt><dd>${esc(qtyText(p))}${contents(p)?'<small>'+esc(contents(p))+'</small>':''}</dd>
+   <dt>Manifest</dt><dd>${m.code?esc(p.quantity+' '+m.code):'<small>'+esc(m.hint)+'</small>'}</dd></dl>`}
+  <div class="stack">
+   ${sdsLink?`<a class="btn btn-2" href="${esc(sdsLink)}" target="_blank" rel="noopener">&#128196; ${p.sds_key?'View SDS':'Open SDS page'}</a>`:''}
+   ${open?`<div class="grid2" style="margin-top:0"><button class="btn btn-danger" id="dRm">Remove</button><button class="btn btn-ok" id="dOk">${p.confirmed?'Unconfirm':'✓ Confirm'}</button></div>`:''}
+  </div>`,id);
+ if(!open)return;
+ const field=(sel,key,num)=>{const el=$(sel);if(!el)return;el.addEventListener('change',async()=>{
+  const val=num?(el.value===''?null:Number(el.value)):el.value;if(await patch(id,{[key]:val},'Saved'))refreshSheet(id)})};
+ field('#eQty','quantity',true);field('#eType','containerType');field('#eMat','containerMaterial');field('#eInner','innerCount',true);
+ $('#dRm').onclick=async()=>{closeSheet();if(await patch(id,{removed:true}))toast('Removed '+p.product_name,'Undo',()=>patch(id,{removed:false},'Restored'))};
+ $('#dOk').onclick=async()=>{const c=!p.confirmed;closeSheet();await patch(id,{confirmed:c},p.product_name+(c?' confirmed':' marked needs review'))}}
+function refreshSheet(id){if(sheetFor!==id)return;const y=$('#sheet').scrollTop;detail(id);$('#sheet').scrollTop=y}
+
+if(visitId)$('#room').value=store.get('m0-room')||'';   // back on an open visit: same room as last upload
+renderFiles();render();load();
+})();
 </script>
 </body>
 </html>

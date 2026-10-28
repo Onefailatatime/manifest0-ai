@@ -44,6 +44,8 @@ export type ExtractedProduct = {
   countNote: string | null;
   physicalState: "solid" | "liquid" | "gas" | "aerosol" | "unknown";
   signalWord: "DANGER" | "WARNING" | "none";
+  hazardClass: string | null;
+  unNumber: string | null;
   hazardStatements: string[];
   ghsPictograms: string[];
   ingredients: string[];
@@ -75,7 +77,8 @@ const productSchema = {
   required: [
     "manufacturer", "productName", "productCode", "containerType", "containerMaterial", "containerSize",
     "innerType", "innerCount", "innerSize", "countNote", "physicalState",
-    "signalWord", "hazardStatements", "ghsPictograms", "ingredients", "quantity", "imageIndexes", "matchesProductId",
+    "signalWord", "hazardClass", "unNumber", "hazardStatements", "ghsPictograms", "ingredients", "quantity",
+    "imageIndexes", "matchesProductId",
   ],
   properties: {
     manufacturer: strOrNull,
@@ -116,6 +119,14 @@ const productSchema = {
     },
     physicalState: { type: "string", enum: ["solid", "liquid", "gas", "aerosol", "unknown"] },
     signalWord: { type: "string", enum: ["DANGER", "WARNING", "none"] },
+    hazardClass: {
+      ...strOrNull,
+      description:
+        "US DOT hazard class with its name, e.g. \"8 (Corrosive)\", \"3 (Flammable liquid)\", \"2.1 (Flammable gas)\". " +
+        "From the label's DOT diamond or shipping text, or when the label makes it clear (e.g. \"causes severe skin burns\" = 8). " +
+        "null if it isn't clear",
+    },
+    unNumber: { ...strOrNull, description: "UN/NA number if printed, e.g. \"UN1791\"; else null" },
     hazardStatements: strList,
     ghsPictograms: { ...strList, description: "e.g. flame, corrosion, exclamation mark, health hazard" },
     ingredients: { ...strList, description: "active/hazardous ingredients with % if shown" },

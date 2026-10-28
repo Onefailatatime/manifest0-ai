@@ -81,8 +81,8 @@ export class VisitAgent extends Agent<Env, VisitState> {
           statements.push(this.db(
             `UPDATE products SET manufacturer = ?, product_code = ?, container_type = ?, container_material = ?,
                container_size = ?, inner_type = ?, inner_count = ?, inner_size = ?, physical_state = ?,
-               signal_word = ?, quantity = ?, count_note = ?, hazard_statements = ?, ghs_pictograms = ?, ingredients = ?,
-               photo_keys = ? WHERE id = ?`,
+               signal_word = ?, hazard_class = ?, un_number = ?, quantity = ?, count_note = ?, hazard_statements = ?,
+               ghs_pictograms = ?, ingredients = ?, photo_keys = ? WHERE id = ?`,
             existing.manufacturer ?? p.manufacturer,
             existing.product_code ?? p.productCode,
             edited || existing.container_type !== "other" ? existing.container_type : p.containerType,
@@ -93,6 +93,8 @@ export class VisitAgent extends Agent<Env, VisitState> {
             existing.inner_size ?? p.innerSize,
             existing.physical_state === "unknown" ? p.physicalState : existing.physical_state ?? p.physicalState,
             existing.signal_word === "none" ? p.signalWord : existing.signal_word ?? p.signalWord,
+            existing.hazard_class ?? p.hazardClass,
+            existing.un_number ?? p.unNumber,
             edited ? existing.quantity : Math.max(existing.quantity, p.quantity),
             edited ? existing.count_note : p.countNote ?? existing.count_note,
             union(existing.hazard_statements, p.hazardStatements),
@@ -107,11 +109,12 @@ export class VisitAgent extends Agent<Env, VisitState> {
           statements.push(this.db(
             `INSERT INTO products (id, visit_id, room, manufacturer, product_name, product_code, container_type,
                container_material, container_size, inner_type, inner_count, inner_size, quantity, count_note,
-               physical_state, signal_word, hazard_statements, ghs_pictograms, ingredients, photo_keys)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               physical_state, signal_word, hazard_class, un_number, hazard_statements, ghs_pictograms, ingredients, photo_keys)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             id, this.visitId, room, p.manufacturer, p.productName, p.productCode, p.containerType, p.containerMaterial,
             p.containerSize, p.innerType, p.innerCount, p.innerSize,
-            Math.max(1, p.quantity), p.countNote, p.physicalState, p.signalWord, JSON.stringify(p.hazardStatements), JSON.stringify(p.ghsPictograms),
+            Math.max(1, p.quantity), p.countNote, p.physicalState, p.signalWord, p.hazardClass, p.unNumber,
+            JSON.stringify(p.hazardStatements), JSON.stringify(p.ghsPictograms),
             JSON.stringify(p.ingredients), JSON.stringify(keys),
           ));
         }
@@ -191,7 +194,7 @@ export class VisitAgent extends Agent<Env, VisitState> {
     // Photos or SDS searches still in flight? Go to the back of the queue and try again after them.
     const pending = await this.db(
       `SELECT (SELECT COUNT(*) FROM photos WHERE visit_id = ?1 AND processed = 0)
-            + (SELECT COUNT(*) FROM products WHERE visit_id = ?1 AND sds_status = 'pending') AS n`, this.visitId,
+            + (SELECT COUNT(*) FROM products WHERE visit_id = ?1 AND sds_status = 'pending' AND removed = 0) AS n`, this.visitId,
     ).first<{ n: number }>();
     if (pending!.n > 0) {
       await this.queue("sendReport", {});
@@ -201,7 +204,7 @@ export class VisitAgent extends Agent<Env, VisitState> {
     try {
       const visit = (await this.db("SELECT * FROM visits WHERE id = ?", this.visitId).first<VisitRow>())!;
       const { results: products } = await this.db(
-        "SELECT * FROM products WHERE visit_id = ? ORDER BY room, product_name", this.visitId,
+        "SELECT * FROM products WHERE visit_id = ? AND removed = 0 ORDER BY room, product_name", this.visitId,
       ).all<ProductRow>();
 
       // Attach each distinct PDF until we hit the size limit; the rest are linked in the email.
@@ -222,7 +225,7 @@ export class VisitAgent extends Agent<Env, VisitState> {
       }
 
       const visitUrl = `${this.state.appUrl}/?visit=${this.visitId}`;
-      const to = [...new Set([visit.user_email, visit.client_email])];
+      const to = recipientsOf(visit);
       const html = reportHtml(visit, products, attachedKeys, this.state.appUrl, visitUrl);
 
       if (!this.env.RESEND_API_KEY) {
@@ -250,7 +253,7 @@ export class VisitAgent extends Agent<Env, VisitState> {
       if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
 
       await this.db("UPDATE visits SET status = 'done', email_sent_at = datetime('now') WHERE id = ?", this.visitId).run();
-      this.log(`Email sent to ${to.join(" and ")}`);
+      this.log(`Email sent to ${to.join(", ")}`);
     } catch (err) {
       await this.db("UPDATE visits SET status = 'failed', error = ? WHERE id = ?", String(err), this.visitId).run();
       this.log(`Email failed: ${err}`);
@@ -274,14 +277,15 @@ export class VisitAgent extends Agent<Env, VisitState> {
 // ---------- types & small utilities ----------
 
 export type VisitRow = {
-  id: string; created_at: string; user_email: string; client_email: string; site_name: string | null;
+  id: string; created_at: string; user_email: string; client_email: string; recipients: string; site_name: string | null;
   status: string; error: string | null; email_sent_at: string | null;
 };
 export type ProductRow = {
   id: string; visit_id: string; room: string; manufacturer: string | null; product_name: string; product_code: string | null;
   container_type: string; container_material: string; container_size: string | null;
   inner_type: string | null; inner_count: number | null; inner_size: string | null; quantity: number; count_note: string | null; count_edited: number;
-  physical_state: string | null; signal_word: string | null;
+  physical_state: string | null; signal_word: string | null; hazard_class: string | null; un_number: string | null;
+  confirmed: number; removed: number;
   hazard_statements: string; ghs_pictograms: string; ingredients: string; photo_keys: string;
   sds_status: string; sds_source: string | null; sds_url: string | null; sds_page_url: string | null;
   sds_key: string | null; sds_notes: string | null;
@@ -294,12 +298,18 @@ const toKnown = (k: ProductRow): KnownProduct => ({
   containerType: k.container_type, containerSize: k.container_size, innerType: k.inner_type, quantity: k.quantity,
 });
 
+/** Everyone the report goes to. Visits from before the recipients column only have the two email fields. */
+const recipientsOf = (v: VisitRow): string[] => {
+  const list = JSON.parse(v.recipients) as string[];
+  return list.length ? list : [...new Set([v.user_email, v.client_email].filter(Boolean))];
+};
+
 const maxOrNull = (a: number | null, b: number | null) => (a == null ? b : b == null ? a : Math.max(a, b));
 
 /** "~50 aerosol, 12 oz each" for a packed box/drum, or "" */
 export const contentsText = (p: Pick<ProductRow, "inner_type" | "inner_count" | "inner_size">) =>
-  p.inner_type
-    ? `contains ${p.inner_count != null ? `~${p.inner_count} ` : ""}${p.inner_type}${p.inner_size ? `, ${p.inner_size} each` : ""}`
+  p.inner_type || p.inner_count != null
+    ? `contains ${p.inner_count != null ? `~${p.inner_count} ` : ""}${p.inner_type ?? "items"}${p.inner_size ? `, ${p.inner_size} each` : ""}`
     : "";
 
 /** Merges a JSON array column with new values, without duplicates. */
@@ -339,9 +349,10 @@ function reportHtml(visit: VisitRow, products: ProductRow[], attached: Set<strin
       <td>${esc(p.room)}</td><td>${esc(p.manufacturer)}</td>
       <td><b>${esc(p.product_name)}</b><br><small>${esc(p.product_code)}</small></td>
       <td><b>${p.quantity} × ${esc(p.container_type)}</b>${p.container_size ? `<br><small>${esc(p.container_size)}</small>` : ""}${
-        p.inner_type ? `<br><small>${esc(contentsText(p))}</small>` : ""}${
+        contentsText(p) ? `<br><small>${esc(contentsText(p))}</small>` : ""}${
         p.count_note ? `<br><small><i>${esc(p.count_note)}</i></small>` : ""}</td>
       <td>${manifest.code ? `<b>${p.quantity} ${manifest.code}</b>` : `<small>${esc(manifest.hint)}</small>`}</td>
+      <td>${esc(p.hazard_class ?? "")}${p.un_number ? `<br><small>${esc(p.un_number)}</small>` : ""}</td>
       <td>${esc(p.signal_word)}</td>
       <td><small>${hazards}</small></td><td>${sds}</td>
     </tr>`;
@@ -350,7 +361,7 @@ function reportHtml(visit: VisitRow, products: ProductRow[], attached: Set<strin
     <h2>Chemical inventory${visit.site_name ? ` – ${esc(visit.site_name)}` : ""}</h2>
     <p>Prepared by ${esc(visit.user_email)} on ${esc(visit.created_at)} UTC. <a href="${esc(visitUrl)}">View online</a></p>
     <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-size:14px">
-      <tr><th>Room</th><th>Manufacturer</th><th>Product</th><th>Containers</th><th>Manifest (Item 10)</th><th>Signal word</th><th>Hazards</th><th>SDS</th></tr>
+      <tr><th>Room</th><th>Manufacturer</th><th>Product</th><th>Containers</th><th>Manifest (Item 10)</th><th>DOT class</th><th>Signal word</th><th>Hazards</th><th>SDS</th></tr>
       ${rows}
     </table>
     <p style="color:#666;font-size:12px">Product data was read from label photos by AI. Verify against the attached SDS before disposal.</p>
