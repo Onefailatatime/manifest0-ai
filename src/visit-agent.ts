@@ -8,11 +8,12 @@ import { extractProducts, findSds, type KnownProduct } from "./muse";
 // already catalogued, so overlapping photos update a product instead of duplicating it.
 //
 // Queue (durable, one item at a time, in order):
-//   processBatch (per upload)  ->  findSds (per new product)  ->  sendReport (after Finish)
+//   processBatch (per upload)  ->  findSdsMany (the batch's new products, 4 at a time)  ->  sendReport (after Finish)
 
 type VisitState = { visitId: string | null; appUrl: string; log: string[] };
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
+const SDS_AT_ONCE = 4; // parallel SDS web searches per batch
 // Resend allows 40 MB of attachments per email after base64 (+33%), so keep raw PDFs under ~25 MB.
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
@@ -123,7 +124,7 @@ export class VisitAgent extends Agent<Env, VisitState> {
       await this.env.DB.batch(statements);
 
       this.log(`${room}: ${newIds.length} new product(s), ${updated} already known`);
-      for (const productId of newIds) await this.queue("findSds", { productId });
+      if (newIds.length) await this.queue("findSdsMany", { productIds: newIds });
     } catch (err) {
       await this.db("UPDATE photos SET processed = 2 WHERE batch_id = ?", batchId).run();
       this.log(`${room}: failed to read photos: ${err}`);
@@ -131,6 +132,13 @@ export class VisitAgent extends Agent<Env, VisitState> {
   }
 
   // ---- Step 2: SDS — from the shared library if we've seen this product before, else web search ----
+  /** Looks up several SDS at once (each search takes 15-60 s, so one at a time was slow). */
+  async findSdsMany({ productIds }: { productIds: string[] }) {
+    const todo = [...productIds];
+    const worker = async () => { for (let id = todo.shift(); id; id = todo.shift()) await this.findSds({ productId: id }); };
+    await Promise.all(Array.from({ length: Math.min(SDS_AT_ONCE, todo.length) }, worker));
+  }
+
   async findSds({ productId }: { productId: string }) {
     const p = await this.db("SELECT * FROM products WHERE id = ?", productId).first<ProductRow>();
     if (!p) return;

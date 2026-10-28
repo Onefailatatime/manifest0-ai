@@ -91,17 +91,19 @@ input::placeholder{color:var(--m0-text-muted)}
 .btn.ok{background:var(--m0-success-bg);color:var(--m0-success);border-color:transparent}
 .btn.wide{width:100%}
 
-/* status line while Muse works */
+/* status card while Manifest0 AI works */
 .status{display:flex;align-items:center;gap:12px;margin-top:12px;padding:12px;border:1px solid var(--m0-line);border-radius:14px}
 .status b{display:block;font-weight:600;font-size:15px}
-.status span{display:block;font-size:var(--m0-fs-xs);color:var(--m0-text-2);margin-top:1px}
 .m0-loader{width:44px;height:44px;flex:0 0 44px}
 /* the diamond fills from the bottom like a tank, then the 0 traces itself, on a loop */
-.ld-fill{animation:ldFill 2.4s cubic-bezier(.6,0,.4,1) infinite}
-.ld-zero{stroke-dasharray:100;animation:ldZero 2.4s ease-in-out infinite}
-@keyframes ldFill{0%{transform:translateY(60px)}45%,85%{transform:translateY(0)}100%{transform:translateY(-60px)}}
-@keyframes ldZero{0%,35%{stroke-dashoffset:100}75%,85%{stroke-dashoffset:0}100%{stroke-dashoffset:-100}}
-@media (prefers-reduced-motion:reduce){.ld-fill,.ld-zero{animation:none}.ld-zero{stroke-dashoffset:0}}
+/* the logo is the progress bar: the diamond fills up and the 0 draws itself, once, from 0 to 100% */
+.ld-fill{transition:transform 2.4s linear}
+.ld-zero{stroke-dasharray:100;transition:stroke-dashoffset 2.4s linear}
+.status .pct{font:500 12px var(--m0-font-mono);color:var(--m0-text-2);margin-left:6px}
+.feed{list-style:none;margin:8px 0 0;padding:0;font-size:12px;color:var(--m0-text-2)}
+.feed li{display:flex;align-items:center;gap:6px;min-height:20px}
+.feed li i{font-size:14px;color:var(--m0-success)}
+.feed li:last-child{color:var(--m0-text)}
 .spin{animation:spin .9s linear infinite;display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
 .banner{margin-top:16px;padding:12px;border-radius:var(--m0-radius-md);font-size:var(--m0-fs-sm);background:var(--m0-success-bg);color:var(--m0-success)}
@@ -298,7 +300,7 @@ body.out #app,body.out .sticky{display:none}
   <main>
     <!-- before the walk starts -->
     <section id="setup">
-      <p class="intro">Snap each label room by room. Muse builds the inventory, finds every SDS and emails the report to your client.</p>
+      <p class="intro">Snap each label room by room. Manifest0 AI builds the inventory, finds every SDS and emails the report to your client.</p>
       <label class="lbl" for="site">Site name</label>
       <input id="site" class="field" type="text" autocomplete="off" placeholder="Riverside Clinic">
       <label class="lbl" for="room">First room</label>
@@ -320,17 +322,17 @@ body.out #app,body.out .sticky{display:none}
       </div>
       <!-- No "capture" attribute: the phone asks Take Photo or Photo Library. -->
       <input class="sr" type="file" id="photoCam" accept="image/*" multiple>
-      <!-- while Muse works: the logo fills up and its 0 draws itself -->
+      <!-- while Manifest0 AI works: the logo fills up with the real progress; below, what is happening -->
       <div class="status" id="status" role="status" hidden>
         <svg class="m0-loader" viewBox="0 0 60 60" aria-hidden="true">
           <defs><clipPath id="ldDiamond"><rect x="12" y="12" width="36" height="36" rx="4" transform="rotate(45 30 30)"/></clipPath></defs>
           <rect width="60" height="60" rx="13" fill="#041D3E"/>
           <rect x="12" y="12" width="36" height="36" rx="4" transform="rotate(45 30 30)" fill="#F3BF2B" opacity=".22"/>
-          <g clip-path="url(#ldDiamond)"><rect class="ld-fill" x="0" y="0" width="60" height="60" fill="#F3BF2B"/></g>
+          <g clip-path="url(#ldDiamond)"><rect class="ld-fill" x="0" y="0" width="60" height="60" fill="#F3BF2B" style="transform:translateY(60px)"/></g>
           <ellipse cx="30" cy="30" rx="7.5" ry="10" fill="none" stroke="#041D3E" stroke-opacity=".18" stroke-width="4.5"/>
-          <ellipse class="ld-zero" cx="30" cy="30" rx="7.5" ry="10" fill="none" stroke="#041D3E" stroke-width="4.5" stroke-linecap="round" pathLength="100"/>
+          <ellipse class="ld-zero" cx="30" cy="30" rx="7.5" ry="10" fill="none" stroke="#041D3E" stroke-width="4.5" stroke-linecap="round" pathLength="100" style="stroke-dashoffset:100"/>
         </svg>
-        <div><b id="statusText"></b><span id="statusSub"></span></div>
+        <div style="flex:1;min-width:0"><b><span id="statusText"></span><span class="pct" id="statusPct"></span></b><ul class="feed" id="feed"></ul></div>
       </div>
       <div class="banner" id="banner" hidden></div>
       <div id="rows"></div>
@@ -535,7 +537,7 @@ function sendReport(){
  const n=data.products.length,unchecked=data.products.filter(p=>!p.confirmed).length,list=JSON.parse(data.visit.recipients||'[]');
  openSheet('Send the report?',`<p style="font-size:14px">${plural(n,'product')} and their SDS sheets go to <b>${esc(list.slice(1).join(', ')||list[0])}</b>${list.length>1?', with a copy to you':''}.</p>
   <ul style="font-size:14px;margin:10px 0 16px 18px;color:var(--m0-text-2)">
-  ${busy()?'<li>Muse is still working. The email goes out as soon as it finishes.</li>':''}
+  ${busy()?'<li>Manifest0 AI is still working. The email goes out as soon as it finishes.</li>':''}
   ${unchecked?`<li>${plural(unchecked,'item')} not confirmed yet.</li>`:''}
   <li>After sending, the inventory can't be changed.</li></ul>
   <div class="grid2"><button class="btn" id="eNo">Not yet</button><button class="btn dark" id="eYes"><i class="ti ti-send"></i> Send</button></div>`);
@@ -582,6 +584,33 @@ const summary=p=>[`${p.quantity} ${p.container_type==='other'?'container':p.cont
 const classChip=p=>p.hazard_class?`<span class="chip hot">CL ${esc(p.hazard_class.split(/\s/)[0])}</span>`:'';
 const sdsChip=p=>({pending:'<span class="chip wait">SDS…</span>',found:'<span class="chip">SDS</span>',page_only:'<span class="chip wait">SDS page</span>',not_found:'<span class="chip bad">No SDS</span>'}[p.sds_status]||'');
 
+/* Progress for the logo, 0-100 and never going backwards. Uploading 0-10, reading labels 10-50 (one Muse call, so it
+   eases forward with time), SDS 50-95 (by how many are done), sending 95-100. */
+let job=null;
+function progress(reading,sds,sending){
+ const now=Date.now();
+ if(!job){const starts=(data?data.log:[]).filter(l=>/: reading \d+ photo|Finishing/.test(l)).map(l=>Date.parse(l.slice(0,24)));
+  const last=starts.at(-1);job={t0:last&&now-last<15*60000?last:now,pct:0,sdsMax:0}}
+ const ease=(since,ms)=>1-Math.exp(-(now-since)/ms);
+ let p;
+ if(uploading)p=10*ease(job.t0,6000);
+ else if(reading){job.readT=job.readT||now;p=10+40*ease(job.readT,25000)}
+ else if(sds){if(sds!==job.lastSds){job.lastSds=sds;job.sdsT=now}job.sdsMax=Math.max(job.sdsMax,sds);
+  const per=45/job.sdsMax;p=50+per*(job.sdsMax-sds)+per*.8*ease(job.sdsT,25000)}
+ else if(sending){job.sendT=job.sendT||now;p=95+4*ease(job.sendT,5000)}
+ job.pct=Math.max(job.pct,Math.min(99,Math.round(p)));return job.pct}
+/* The agent's log lines, in plain words for the status card. */
+function friendly(line){const t=line.replace(/^\S+ /,''),m=(re)=>t.match(re);let x;
+ if(x=m(/: reading (\d+) photo/))return `Reading ${plural(+x[1],'label photo')}`;
+ if(x=m(/: (\d+) new product\(s\), (\d+) already known/))return +x[1]?`Added ${plural(+x[1],'product')} to the list`:'No new products in these photos';
+ if(x=m(/^Searching web for SDS: (.+)/))return `Searching the web for the ${x[1]} SDS`;
+ if(x=m(/^SDS from library: (.+)/))return `${x[1]}: SDS already saved, reused it`;
+ if(x=m(/^SDS found: (.+)/))return `${x[1]}: SDS found and saved`;
+ if(x=m(/^SDS page only: (.+)/))return `${x[1]}: found the SDS page`;
+ if(x=m(/^SDS not found: (.+)/))return `${x[1]}: no SDS found`;
+ if(m(/^Finishing/))return 'Getting the report ready';
+ return null}
+
 function render(){
  const v=data&&data.visit,open=isOpen(),walking=!!visitId,signedIn=!!me;
  $('#signin').hidden=signedIn;document.body.classList.toggle('out',!signedIn);$('#setup').hidden=!signedIn||walking;$('#walk').hidden=!signedIn||!walking;
@@ -592,11 +621,15 @@ function render(){
  $('#roomTitle').textContent=room||'Choose a room';
  $('#accountBtn').innerHTML=me?esc(me[0].toUpperCase()):'<i class="ti ti-user"></i>';
 
- // status line
- const reading=data?data.photos.pending:0,sds=sdsPending();
- const st=uploading?`Uploading ${plural(uploading,'photo')}…`:reading?`Reading ${plural(reading,'label photo')}…`:sds?`Finding ${plural(sds,'SDS sheet')}…`:v&&v.status==='finishing'?'Sending the report…':'';
- $('#status').hidden=!st;$('#statusText').textContent=st;
- $('#statusSub').textContent=uploading?'Making photos smaller and sending them':reading?'Muse is reading product names, hazards and container counts':sds?'Searching manufacturer websites for each Safety Data Sheet':'Attaching the SDS sheets to the email';
+ // status card: stage title, real progress (0-100%) and the latest steps from the agent's log
+ const reading=data?data.photos.pending:0,sds=sdsPending(),sending=v&&v.status==='finishing';
+ const st=uploading?'Uploading photos':reading?'Reading the labels':sds?'Finding SDS sheets':sending?'Sending the report':'';
+ $('#status').hidden=!st;
+ if(st){const pct=progress(reading,sds,sending);$('#statusText').textContent=st+(sds&&job.sdsMax>1?` · ${job.sdsMax-sds+1} of ${job.sdsMax}`:'');$('#statusPct').textContent=pct+'%';
+  $('.ld-fill').style.transform=`translateY(${60*(1-pct/100)}px)`;$('.ld-zero').style.strokeDashoffset=100-pct;
+  const steps=(data?data.log:[]).filter(l=>Date.parse(l.slice(0,24))>=job.t0-1000).map(friendly).filter((t,i,a)=>t&&t!==a[i-1]).slice(-3);
+  $('#feed').innerHTML=steps.map((t,i)=>`<li>${i<steps.length-1?'<i class="ti ti-check"></i>':'<i class="ti ti-point"></i>'}${esc(t)}</li>`).join('')}
+ else job=null;
 
  // result banner
  const saved=data&&data.log.map(l=>l.match(/Report: (\/api\/files\/\S+)/)).filter(Boolean).at(-1),bn=$('#banner');
