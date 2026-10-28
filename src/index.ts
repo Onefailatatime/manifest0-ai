@@ -18,6 +18,7 @@ export default {
     const { pathname } = url;
 
     if (method === "POST" && pathname === "/api/visits") return createVisit(request, env, url.origin);
+    if (method === "GET" && pathname === "/api/visits") return listVisits(env, url.searchParams.get("email") ?? "");
 
     const visit = pathname.match(/^\/api\/visits\/([\w-]+)(\/photos|\/finish)?$/);
     if (visit) {
@@ -61,6 +62,20 @@ async function createVisit(request: Request, env: Env, origin: string) {
   const agent = await getAgentByName(env.VisitAgent, visitId);
   await agent.open(visitId, origin);
   return Response.json({ visitId });
+}
+
+/**
+ * The technician's site walks, newest first (the Locations list).
+ * Demo: filtered by the email the app signed in with. Once real login exists this must come from the session, not the URL.
+ */
+async function listVisits(env: Env, email: string) {
+  if (!isEmail(email)) return error("Enter a valid email.");
+  const { results } = await env.DB.prepare(
+    `SELECT v.id, v.site_name, v.status, v.created_at,
+       (SELECT COUNT(*) FROM products p WHERE p.visit_id = v.id AND p.removed = 0) AS products
+     FROM visits v WHERE v.user_email = ? ORDER BY v.created_at DESC LIMIT 50`,
+  ).bind(email.trim().toLowerCase()).all();
+  return Response.json({ visits: results });
 }
 
 /** Add a batch of photos from one room; the agent processes them in the background. */
