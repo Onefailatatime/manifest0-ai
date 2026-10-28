@@ -219,7 +219,7 @@ body.out #app,body.out .sticky{display:none}
     <!-- before the walk starts -->
     <section id="setup">
       <p class="intro">Snap each label room by room. Muse builds the inventory, finds every SDS and emails the report to your client.</p>
-      <label class="lbl" for="site">Site name <span>(optional)</span></label>
+      <label class="lbl" for="site">Site name</label>
       <input id="site" class="field" type="text" autocomplete="off" placeholder="Riverside Clinic">
       <label class="lbl" for="room">First room</label>
       <input id="room" class="field" type="text" autocomplete="off" placeholder="Janitor closet">
@@ -322,11 +322,12 @@ $('#accountBtn').onclick=account;
 
 /* ---------- start the walk ---------- */
 async function startWalk(){
- const clients=emails($('#client').value),r=$('#room').value.trim();
- const bad=!clients.length?'Enter the client email.':clients.find(e=>!RE.test(e))?'Check this address: '+clients.find(e=>!RE.test(e)):!r?'Enter the first room.':'';
+ const site=$('#site').value.trim(),clients=emails($('#client').value),r=$('#room').value.trim();
+ $('#site').setAttribute('aria-invalid',!site);
+ const bad=!site?'Enter the site name.':!clients.length?'Enter the client email.':clients.find(e=>!RE.test(e))?'Check this address: '+clients.find(e=>!RE.test(e)):!r?'Enter the first room.':'';
  $('#client').setAttribute('aria-invalid',!clients.length||clients.some(e=>!RE.test(e)));$('#room').setAttribute('aria-invalid',!r);
  $('#setupErr').hidden=!bad;$('#setupErr').textContent=bad;if(bad)return;
- try{const res=await api('/api/visits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recipients:[me,...clients],siteName:$('#site').value})});
+ try{const res=await api('/api/visits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recipients:[me,...clients],siteName:site})});
   visitId=res.visitId;history.replaceState(null,'','?visit='+visitId);setRoom(r);await load()}
  catch(e){toast(e.message)}}
 

@@ -48,10 +48,12 @@ async function createVisit(request: Request, env: Env, origin: string) {
   const body = (await request.json()) as { recipients?: string[]; siteName?: string };
   const recipients = [...new Set((body.recipients ?? []).map((e) => String(e).trim().toLowerCase()).filter(Boolean))];
   if (!recipients.length || recipients.length > 10 || !recipients.every(isEmail)) return error("Enter 1–10 valid email addresses.");
+  const siteName = body.siteName?.trim();
+  if (!siteName) return error("Enter the site name.");
 
   const visitId = crypto.randomUUID();
   await env.DB.prepare("INSERT INTO visits (id, user_email, client_email, recipients, site_name) VALUES (?, ?, ?, ?, ?)")
-    .bind(visitId, recipients[0], recipients.slice(1).join(", "), JSON.stringify(recipients), body.siteName?.trim() || null).run();
+    .bind(visitId, recipients[0], recipients.slice(1).join(", "), JSON.stringify(recipients), siteName).run();
 
   const agent = await getAgentByName(env.VisitAgent, visitId);
   await agent.open(visitId, origin);
