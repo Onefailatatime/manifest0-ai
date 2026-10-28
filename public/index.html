@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manifest Zero</title>
+  <style>
+    :root { --bg:#f7f7f5; --card:#fff; --text:#1a1a1a; --muted:#6b6b6b; --line:#e3e3df; --accent:#d9480f; --ok:#2b8a3e; --warn:#b7791f; --bad:#e03131; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#141414; --card:#1e1e1e; --text:#eee; --muted:#9a9a9a; --line:#333; --accent:#ff7a3d; --ok:#51cf66; --warn:#f0b429; --bad:#ff6b6b; }
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui, sans-serif; }
+    main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 64px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    h1 span { color: var(--accent); }
+    h2 { font-size: 16px; margin: 0 0 8px; }
+    .sub { color: var(--muted); margin: 0 0 24px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:16px; }
+    label { display:block; font-weight:600; font-size:14px; margin:12px 0 4px; }
+    label:first-child { margin-top:0; }
+    input[type=email], input[type=text] { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; }
+    .drop { border:2px dashed var(--line); border-radius:12px; padding:20px; text-align:center; color:var(--muted); cursor:pointer; margin-top:12px; }
+    .thumbs { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .thumbs img { width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line); }
+    button { margin-top:16px; width:100%; padding:12px; border:0; border-radius:8px; background:var(--accent); color:#fff; font:600 16px system-ui; cursor:pointer; }
+    button.secondary { background:transparent; color:var(--text); border:1px solid var(--line); }
+    button:disabled { opacity:.5; cursor:default; }
+    .err { color:var(--bad); margin-top:12px; }
+    .head { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+    .status { display:flex; align-items:center; gap:10px; font-weight:600; }
+    .dot { width:10px; height:10px; border-radius:50%; background:var(--muted); }
+    .dot.busy { background:var(--warn); animation:pulse 1s infinite alternate; }
+    .dot.done { background:var(--ok); } .dot.failed { background:var(--bad); }
+    @keyframes pulse { to { opacity:.3; } }
+    .log { font:12px/1.6 ui-monospace, monospace; color:var(--muted); margin-top:8px; max-height:120px; overflow:auto; }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th, td { text-align:left; padding:8px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; }
+    tr.room td { background:var(--bg); font-weight:700; font-size:13px; }
+    .pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:12px; font-weight:600; border:1px solid currentColor; white-space:nowrap; }
+    .found { color:var(--ok); } .pending { color:var(--warn); } .not_found, .page_only { color:var(--muted); }
+    small { color:var(--muted); }
+    a { color:var(--accent); }
+    .empty { color:var(--muted); text-align:center; padding:24px; }
+    .count { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+    .code { color:var(--text); letter-spacing:.5px; }
+    .count input, .count select { padding:4px 6px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--text); font:inherit; font-size:14px; }
+    .count input { width:56px; }
+    .note { color:var(--warn); font-style:italic; }
+    .saved { color:var(--ok); font-size:12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Manifest <span>Zero</span></h1>
+  <p class="sub">Walk the site room by room, photograph the labels. We build the inventory, find each SDS, and email it.</p>
+
+  <!-- 1. Start a visit -->
+  <form id="startForm" class="card">
+    <label for="userEmail">Your email</label>
+    <input id="userEmail" name="userEmail" type="email" required autocomplete="email">
+    <label for="clientEmail">Client email</label>
+    <input id="clientEmail" name="clientEmail" type="email" required>
+    <label for="siteName">Site name <small>(optional)</small></label>
+    <input id="siteName" name="siteName" type="text" placeholder="e.g. Acme Warehouse, 12 Main St">
+    <button type="submit">Start site visit</button>
+    <div class="err" id="startErr"></div>
+  </form>
+
+  <!-- 2. The visit -->
+  <section id="visitView" hidden>
+    <div class="card">
+      <div class="head">
+        <div class="status"><div class="dot" id="dot"></div><span id="statusText"></span></div>
+        <small id="siteLabel"></small>
+      </div>
+      <div class="log" id="log"></div>
+    </div>
+
+    <form id="photoForm" class="card">
+      <h2>Add photos</h2>
+      <label for="room">Room / area</label>
+      <input id="room" type="text" placeholder="e.g. Garage, Kitchen, Storage room 2" required>
+      <div class="drop" id="drop">Tap to take or choose label photos<br><small>Overlapping photos are fine, up to 12 per upload</small></div>
+      <input id="images" type="file" accept="image/*" multiple hidden>
+      <div class="thumbs" id="thumbs"></div>
+      <button id="uploadBtn" type="submit">Upload photos</button>
+      <div class="err" id="photoErr"></div>
+    </form>
+
+    <div class="card table-wrap">
+      <table>
+        <thead><tr><th>Product</th><th>Containers</th><th>Signal</th><th>Hazards</th><th>SDS</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+
+    <button id="finishBtn" class="secondary">Finish visit &amp; email report</button>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c]);
+  const store = { get: (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } },
+                  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+  let visitId = new URLSearchParams(location.search).get("visit");
+  let files = [];
+  let pollTimer;
+  let lastRows = "";
+
+  $("userEmail").value = store.get("userEmail");
+
+  // ---- 1. start a visit ----
+  $("startForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData($("startForm")));
+    store.set("userEmail", body.userEmail);
+    const res = await fetch("/api/visits", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) return ($("startErr").textContent = data.error || "Could not start visit.");
+    visitId = data.visitId;
+    history.pushState(null, "", `?visit=${visitId}`);
+    showVisit();
+  };
+
+  // ---- 2. add photos, one room at a time ----
+  $("drop").onclick = () => $("images").click();
+  $("images").onchange = (e) => {
+    files = [...files, ...e.target.files].slice(0, 12);
+    $("thumbs").innerHTML = "";
+    for (const f of files) {
+      const img = document.createElement("img");
+      img.src = URL.createObjectURL(f);
+      $("thumbs").append(img);
+    }
+    e.target.value = "";
+  };
+
+  $("photoForm").onsubmit = async (e) => {
+    e.preventDefault();
+    $("photoErr").textContent = "";
+    if (!files.length) return ($("photoErr").textContent = "Add at least one photo.");
+    const fd = new FormData();
+    fd.append("room", $("room").value);
+    for (const f of files) fd.append("images", f);
+    $("uploadBtn").disabled = true;
+    $("uploadBtn").textContent = "Uploading…";
+    const res = await fetch(`/api/visits/${visitId}/photos`, { method: "POST", body: fd });
+    const data = await res.json();
+    $("uploadBtn").disabled = false;
+    $("uploadBtn").textContent = "Upload photos";
+    if (!res.ok) return ($("photoErr").textContent = data.error || "Upload failed.");
+    files = [];
+    $("thumbs").innerHTML = "";
+    refresh();
+  };
+
+  // ---- 3. finish ----
+  $("finishBtn").onclick = async () => {
+    if (!confirm("Finish the visit and email the report to you and the client?")) return;
+    $("finishBtn").disabled = true;
+    const res = await fetch(`/api/visits/${visitId}/finish`, { method: "POST" });
+    if (!res.ok) { $("finishBtn").disabled = false; alert((await res.json()).error); }
+    refresh();
+  };
+
+  // ---- live view ----
+  function showVisit() {
+    $("startForm").hidden = true;
+    $("visitView").hidden = false;
+    refresh();
+  }
+
+  async function refresh() {
+    clearTimeout(pollTimer);
+    const res = await fetch(`/api/visits/${visitId}`);
+    if (!res.ok) return ($("statusText").textContent = "Visit not found");
+    const { visit, products, photos, log } = await res.json();
+
+    const sdsPending = products.filter((p) => p.sds_status === "pending").length;
+    const busy = photos.pending > 0 || sdsPending > 0;
+    let text, dot;
+    if (visit.status === "done") [text, dot] = ["Done — report emailed", "done"];
+    else if (visit.status === "failed") [text, dot] = [`Failed: ${visit.error}`, "failed"];
+    else if (photos.pending) [text, dot] = [`Reading ${photos.pending} photo(s)…`, "busy"];
+    else if (sdsPending) [text, dot] = [`Finding SDS for ${sdsPending} product(s)…`, "busy"];
+    else if (visit.status === "finishing") [text, dot] = ["Sending report…", "busy"];
+    else [text, dot] = [`${products.length} product(s) so far — add more photos or finish`, ""];
+    $("statusText").textContent = text;
+    $("dot").className = `dot ${dot}`;
+    $("siteLabel").textContent = visit.site_name || "";
+
+    $("log").innerHTML = log.map((l) => esc(l.slice(11, 19) + l.slice(24))).join("<br>");
+    $("log").scrollTop = $("log").scrollHeight;
+
+    const open = visit.status === "open";
+    $("photoForm").hidden = !open;
+    $("finishBtn").hidden = !open;
+    $("finishBtn").disabled = false;
+
+    // Redraw the table only when something changed, and never while the technician is editing a count in it.
+    const editing = $("rows").contains(document.activeElement);
+    const snapshot = JSON.stringify([products, open]);
+    if (!editing && snapshot !== lastRows) {
+      lastRows = snapshot;
+      renderRows(products, open);
+    }
+    if (busy || visit.status === "finishing") pollTimer = setTimeout(refresh, 2000);
+  }
+
+  const CONTAINER_TYPES = ["drum", "pail", "jug", "bottle", "can", "aerosol", "box", "bag", "tote", "cylinder", "tube", "other"];
+
+  const MATERIALS = ["metal", "plastic", "fiber", "wood", "glass", "unknown"];
+  const optionsFor = (list, value) => list.map((t) => `<option ${t === value ? "selected" : ""}>${t}</option>`).join("");
+
+  function containersCell(p, open) {
+    const size = p.container_size ? `<br><small>${esc(p.container_size)}</small>` : "";
+    const note = p.count_note ? `<br><small class="note">${esc(p.count_note)}</small>` : "";
+    const code = p.manifest.code
+      ? `<br><small>Manifest: <b class="code">${p.quantity} ${p.manifest.code}</b></small>`
+      : `<br><small>Manifest: ${esc(p.manifest.hint)}</small>`;
+    if (!open) return `<b>${p.quantity} × ${esc(p.container_material)} ${esc(p.container_type)}</b>${code}${size}${note}`;
+    return `<div class="count" data-id="${p.id}">
+        <input type="number" min="1" value="${p.quantity}" aria-label="Number of containers"> ×
+        <select aria-label="Container material">${optionsFor(MATERIALS, p.container_material)}</select>
+        <select aria-label="Container type">${optionsFor(CONTAINER_TYPES, p.container_type)}</select>
+        ${p.count_edited ? `<span class="saved" title="Corrected by technician">✓</span>` : ""}
+      </div>${code}${size}${note}`;
+  }
+
+  // Save a corrected count/type as soon as it's changed.
+  $("rows").addEventListener("change", async (e) => {
+    const box = e.target.closest(".count");
+    if (!box) return;
+    const quantity = Number(box.querySelector("input").value);
+    const containerMaterial = box.querySelector('[aria-label="Container material"]').value;
+    const containerType = box.querySelector('[aria-label="Container type"]').value;
+    const res = await fetch(`/api/products/${box.dataset.id}`, {
+      method: "PATCH", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ quantity, containerType, containerMaterial }),
+    });
+    if (!res.ok) alert((await res.json()).error);
+    document.activeElement.blur();
+    refresh();
+  });
+
+  function renderRows(products, open) {
+    let room = null;
+    $("rows").innerHTML = products.length ? products.map((p) => {
+      const header = p.room !== room ? `<tr class="room"><td colspan="5">${esc((room = p.room))}</td></tr>` : "";
+      const sds = p.sds_key ? `<a href="/api/files/${encodeURIComponent(p.sds_key)}" target="_blank">PDF</a>`
+        : p.sds_page_url || p.sds_url ? `<a href="${esc(p.sds_page_url || p.sds_url)}" target="_blank" rel="noopener">Page</a>` : "";
+      const label = p.sds_source === "library" ? "library" : p.sds_status.replace("_", " ");
+      return header + `<tr>
+        <td><b>${esc(p.product_name)}</b><br><small>${esc(p.manufacturer)}${p.product_code ? " · " + esc(p.product_code) : ""}</small></td>
+        <td>${containersCell(p, open)}</td>
+        <td>${esc(p.signal_word)}</td>
+        <td><small>${JSON.parse(p.hazard_statements).map(esc).join("<br>")}</small></td>
+        <td><span class="pill ${p.sds_status}">${label}</span> ${sds}</td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="5" class="empty">No products yet. Add photos of the first room.</td></tr>`;
+  }
+
+  if (visitId) showVisit();
+</script>
+</body>
+</html>
