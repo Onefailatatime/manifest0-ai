@@ -138,6 +138,24 @@ dd small{display:block;font-weight:400;color:var(--m0-text-2)}
 .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translate(-50%,20px);z-index:60;background:var(--m0-text);color:var(--m0-bg);padding:10px 14px;border-radius:var(--m0-radius-md);font-size:var(--m0-fs-sm);font-weight:500;opacity:0;pointer-events:none;transition:all .2s;max-width:calc(100% - 32px);display:flex;align-items:center;gap:12px}
 body.lock .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
 .toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+/* sign-in: full screen in the header color, form card at the bottom */
+.signin{min-height:100vh;min-height:100dvh;max-width:var(--m0-content-max);margin:0 auto;background:var(--m0-header);color:var(--m0-on-header);display:flex;flex-direction:column}
+body.out{background:var(--m0-header)}
+body.out #app,body.out .sticky{display:none}
+.brand{flex:1;display:flex;flex-direction:column;justify-content:center;padding:calc(32px + env(safe-area-inset-top)) 28px 32px}
+.badge-mark{width:56px;height:56px;border-radius:16px;background:var(--m0-hazard);color:var(--m0-on-hazard);display:grid;place-items:center;font-size:30px}
+.big-mark{font-size:2rem;font-weight:700;letter-spacing:-.02em;margin-top:20px}
+.big-mark b{color:var(--m0-hazard);font-weight:700}
+.brand p{font-size:var(--m0-fs-body);opacity:.8;margin-top:10px;max-width:30ch}
+.signin-card{background:var(--m0-bg);color:var(--m0-text);border-radius:24px 24px 0 0;padding:24px 20px calc(24px + env(safe-area-inset-bottom))}
+[data-theme=dark] .signin-card{background:var(--m0-surface)}
+[data-theme=dark] .signin-card .field{background:var(--m0-surface-2)}
+.signin-card h2{font-size:var(--m0-fs-h2);font-weight:600}
+.signin-card .lbl{margin-top:14px}
+.go-btn{width:100%;min-height:var(--m0-btn-h);margin-top:16px;border:0;border-radius:var(--m0-radius-md);background:var(--m0-hazard);color:var(--m0-on-hazard);font-size:1.0625rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+.demo-note{text-align:center;font-size:var(--m0-fs-xs);color:var(--m0-text-2);margin-top:12px}
+@media (min-width:600px){.signin{min-height:auto;margin-top:6vh;border-radius:24px;overflow:hidden}.brand{padding:48px 32px 40px}.signin-card{border-radius:24px 24px 0 0}}
+
 /* room dropdown */
 .top{position:relative}
 .link i{font-size:14px;vertical-align:-2px}
@@ -166,7 +184,24 @@ body.lock .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
 </style>
 </head>
 <body>
-<div class="wrap">
+<!-- demo sign-in: only remembers the email on this phone. Real sign-in comes later. -->
+<section class="signin" id="signin" hidden>
+  <div class="brand">
+    <div class="badge-mark"><i class="ti ti-flask"></i></div>
+    <div class="big-mark">Manifest0<b>-Ai</b></div>
+    <p>Walk the site, snap the labels. Get the waste inventory and every SDS, sent to your client.</p>
+  </div>
+  <form class="signin-card" id="signinForm" novalidate>
+    <h2>Sign in</h2>
+    <label class="lbl" for="me">Work email</label>
+    <input id="me" class="field" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com">
+    <div class="err" id="signinErr" role="alert" hidden></div>
+    <button class="go-btn" type="submit">Continue <i class="ti ti-arrow-right"></i></button>
+    <div class="demo-note">Demo version: no password needed yet.</div>
+  </form>
+</section>
+
+<div class="wrap" id="app">
   <header class="top">
     <div class="bar">
       <button class="mark" id="markBtn">Manifest0<b>-Ai</b></button>
@@ -181,15 +216,6 @@ body.lock .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
   </header>
 
   <main>
-    <!-- demo sign-in: only remembers the email on this phone. Real sign-in comes later. -->
-    <section id="signin" hidden>
-      <p class="intro">Sign in with your work email. The reports you send come from and reply to this address.</p>
-      <label class="lbl" for="me">Email</label>
-      <input id="me" class="field" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com">
-      <div class="hint">Demo sign-in: no password or code yet.</div>
-      <div class="err" id="signinErr" role="alert" hidden></div>
-    </section>
-
     <!-- before the walk starts -->
     <section id="setup">
       <p class="intro">Snap each label room by room. Muse builds the inventory, finds every SDS and emails the report to your client.</p>
@@ -282,7 +308,7 @@ async function load(){if(!visitId)return render();
 function signIn(){const v=$('#me').value.trim();const ok=RE.test(v);
  $('#me').setAttribute('aria-invalid',!ok);$('#signinErr').hidden=ok;$('#signinErr').textContent=ok?'':'Enter your work email.';
  if(!ok)return;me=v;store.set('m0-me',me);render()}
-$('#me').addEventListener('keydown',e=>{if(e.key==='Enter')signIn()});
+$('#signinForm').addEventListener('submit',e=>{e.preventDefault();signIn()});
 function account(){
  const pick=store.get('m0-theme')||'system',seg=(v,icon,label)=>`<button data-theme-pick="${v}" aria-pressed="${pick===v}"><i class="ti ti-${icon}"></i>${label}</button>`;
  openSheet('Account',`${me?`<div class="who"><div class="avatar">${esc(me[0].toUpperCase())}</div><div><b>${esc(me)}</b><span>Reports are sent from and reply to this address</span></div></div>`:''}
@@ -385,7 +411,7 @@ const sdsChip=p=>({pending:'<span class="chip wait">SDS…</span>',found:'<span 
 
 function render(){
  const v=data&&data.visit,open=isOpen(),walking=!!visitId,signedIn=!!me;
- $('#signin').hidden=signedIn;$('#setup').hidden=!signedIn||walking;$('#walk').hidden=!signedIn||!walking;
+ $('#signin').hidden=signedIn;document.body.classList.toggle('out',!signedIn);$('#setup').hidden=!signedIn||walking;$('#walk').hidden=!signedIn||!walking;
  $('#siteLine').textContent=!signedIn?'Welcome':walking?(v&&v.site_name)||'Site walk':'New walk';
  $('#roomTitle').textContent=!signedIn?'Sign in':walking?(open?room||'Choose a room':(v.status==='done'?(v.email_sent_at?'Report sent':'Report saved'):v.status==='failed'?'Report not sent':'Sending report')):'Start a site walk';
  $('#roomBtn').hidden=!signedIn||!walking||!open;$('#capture').hidden=!walking||!open;
