@@ -24,6 +24,7 @@ export default {
     if (visit) {
       const [, visitId, action] = visit;
       if (method === "GET" && !action) return getVisit(env, visitId);
+      if (method === "DELETE" && !action) return deleteVisit(env, visitId, url.searchParams.get("email") ?? "");
       if (method === "POST" && action === "/photos") return addPhotos(request, env, visitId);
       if (method === "POST" && action === "/finish") return finishVisit(env, visitId);
     }
@@ -73,9 +74,20 @@ async function listVisits(env: Env, email: string) {
   const { results } = await env.DB.prepare(
     `SELECT v.id, v.site_name, v.status, v.created_at,
        (SELECT COUNT(*) FROM products p WHERE p.visit_id = v.id AND p.removed = 0) AS products
-     FROM visits v WHERE v.user_email = ? ORDER BY v.created_at DESC LIMIT 50`,
+     FROM visits v WHERE v.user_email = ? AND v.deleted = 0 ORDER BY v.created_at DESC LIMIT 50`,
   ).bind(email.trim().toLowerCase()).all();
   return Response.json({ visits: results });
+}
+
+/** Delete a site walk from Locations (hidden, not erased). Only its technician can, and not while the report is sending. */
+async function deleteVisit(env: Env, visitId: string, email: string) {
+  const visit = await env.DB.prepare("SELECT user_email, status FROM visits WHERE id = ? AND deleted = 0").bind(visitId)
+    .first<{ user_email: string; status: string }>();
+  if (!visit) return error("Location not found.", 404);
+  if (visit.user_email !== email.trim().toLowerCase()) return error("You can only delete your own locations.", 403);
+  if (visit.status === "finishing") return error("The report is being sent. Try again in a minute.");
+  await env.DB.prepare("UPDATE visits SET deleted = 1 WHERE id = ?").bind(visitId).run();
+  return Response.json({ ok: true });
 }
 
 /** Add a batch of photos from one room; the agent processes them in the background. */
@@ -163,8 +175,8 @@ async function finishVisit(env: Env, visitId: string) {
 
 /** Visit page data: the visit, its products, photo processing state, and the agent's log. */
 async function getVisit(env: Env, visitId: string) {
-  const visit = await env.DB.prepare("SELECT * FROM visits WHERE id = ?").bind(visitId).first<VisitRow>();
-  if (!visit) return error("Not found", 404);
+  const visit = await env.DB.prepare("SELECT * FROM visits WHERE id = ? AND deleted = 0").bind(visitId).first<VisitRow>();
+  if (!visit) return error("This location was deleted or doesn't exist.", 404);
   const [{ results: products }, photos, { results: rooms }] = await Promise.all([
     // Removed products are kept in the table (so new photos of them stay removed) but not shown.
     env.DB.prepare("SELECT * FROM products WHERE visit_id = ? AND removed = 0 ORDER BY room, product_name").bind(visitId).all<ProductRow>(),

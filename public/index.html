@@ -230,13 +230,14 @@ body.out #app,body.out .sticky{display:none}
 .who span{font-size:var(--m0-fs-xs);color:var(--m0-text-2)}
 .set-lbl{font-size:var(--m0-fs-sm);font-weight:500;margin-bottom:8px}
 .locs{border:1px solid var(--m0-line);border-radius:12px;overflow:hidden;max-height:252px;overflow-y:auto}
-.loc{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:10px 12px;border:0;border-bottom:1px solid var(--m0-line);background:none;text-align:left}
-.loc:last-child{border-bottom:0}
-.loc.cur{background:var(--m0-surface-2)}
+.loc-item{display:flex;align-items:center;border-bottom:1px solid var(--m0-line);padding-right:12px}
+.loc-item:last-child{border-bottom:0}
+.loc-item.cur{background:var(--m0-surface-2)}
+.loc{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:1;min-width:0;padding:10px 12px;border:0;background:none;text-align:left}
 .loc b{display:block;font-weight:500;font-size:15px}
 .loc small{display:block;font-size:12px;color:var(--m0-text-2);margin-top:1px}
 .loc i{color:var(--m0-text-2);font-size:18px}
-.loc.cur i{color:var(--m0-success)}
+.loc-item.cur .loc i{color:var(--m0-success)}
 .loc-empty{padding:14px 12px;font-size:var(--m0-fs-sm);color:var(--m0-text-2)}
 .site{cursor:pointer}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:var(--m0-radius-md);background:var(--m0-surface-2);margin-bottom:22px}
@@ -401,9 +402,20 @@ async function loadLocations(){
  if(!list.length){box.innerHTML='<div class="loc-empty">No locations yet.</div>';return}
  const when=d=>new Date(d.replace(' ','T')+'Z').toLocaleDateString(undefined,{month:'short',day:'numeric'});
  const st={open:'In progress',finishing:'Sending',done:'Sent',failed:'Not sent'};
- box.innerHTML=list.map(v=>`<button class="loc${v.id===visitId?' cur':''}" data-visit="${v.id}"><span><b>${esc(v.site_name||'Unnamed site')}</b>
-  <small>${plural(v.products,'product')} · ${when(v.created_at)} · ${st[v.status]||v.status}</small></span>${v.id===visitId?'<i class="ti ti-check"></i>':'<i class="ti ti-chevron-right"></i>'}</button>`).join('');
- box.querySelectorAll('[data-visit]').forEach(b=>b.onclick=()=>openVisit(b.dataset.visit))}
+ box.innerHTML=list.map(v=>`<div class="loc-item${v.id===visitId?' cur':''}"><button class="loc" data-visit="${v.id}"><span><b>${esc(v.site_name||'Unnamed site')}</b>
+  <small>${plural(v.products,'product')} · ${when(v.created_at)} · ${st[v.status]||v.status}</small></span>${v.id===visitId?'<i class="ti ti-check"></i>':''}</button>
+  <button class="del" data-del-visit="${v.id}" aria-label="Delete ${esc(v.site_name||'site')}"><i class="ti ti-trash"></i></button></div>`).join('');
+ box.querySelectorAll('[data-visit]').forEach(b=>b.onclick=()=>openVisit(b.dataset.visit));
+ box.querySelectorAll('[data-del-visit]').forEach(b=>b.onclick=()=>confirmDeleteLocation(list.find(v=>v.id===b.dataset.delVisit)))}
+/* Deleting a site asks first; afterwards you're back in the account menu. */
+function confirmDeleteLocation(v){
+ openSheet('Delete this location?',`<p style="font-size:15px"><b>${esc(v.site_name||'Unnamed site')}</b> and its ${plural(v.products,'product')} will be removed from your locations.</p>
+  <div class="grid2" style="margin-top:18px"><button class="btn" id="locNo">Cancel</button><button class="btn danger" id="locYes"><i class="ti ti-trash"></i> Yes, delete</button></div>`);
+ $('#locNo').onclick=account;
+ $('#locYes').onclick=async()=>{
+  try{await api(`/api/visits/${v.id}?email=${encodeURIComponent(me)}`,{method:'DELETE'})}catch(e){toast(e.message);return}
+  if(v.id===visitId)newWalk();
+  toast('Deleted '+(v.site_name||'location'));account()}}
 async function openVisit(id){
  closeSheet();if(id===visitId)return;
  clearTimeout(pollTimer);tray.forEach(t=>URL.revokeObjectURL(t.url));tray=[];renderTray();
