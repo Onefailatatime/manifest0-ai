@@ -116,26 +116,49 @@ input::placeholder{color:var(--m0-text-muted)}
 .primary[aria-disabled=true]{opacity:.4}
 
 /* bottom sheet */
-.scrim{position:fixed;inset:0;background:rgba(10,14,20,.5);z-index:40;opacity:0;transition:opacity .2s}
+/* overlays: "dialog" = card in the middle with the page blurred; "full" = full-screen page (product details) */
+.scrim{position:fixed;inset:0;background:rgba(10,14,20,.35);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);z-index:40;opacity:0;transition:opacity .2s}
 .scrim.show{opacity:1}
-.sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;max-width:var(--m0-content-max);margin:0 auto;background:var(--m0-bg);border-radius:18px 18px 0 0;padding:8px var(--m0-gutter) calc(16px + env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .25s cubic-bezier(.2,.8,.2,1);max-height:88vh;overflow:auto}
-.sheet.show{transform:none}
-.grab{width:40px;height:5px;border-radius:999px;background:var(--m0-border-strong);margin:4px auto 8px}
-.sheet-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px}
+.sheet{position:fixed;z-index:50;background:var(--m0-bg);overflow:auto;opacity:0;transition:opacity .2s,transform .2s cubic-bezier(.2,.8,.2,1)}
+.sheet.dialog{left:50%;top:50%;width:min(400px,calc(100% - 32px));max-height:85vh;border-radius:16px;padding:18px 18px 20px;box-shadow:var(--m0-shadow-2);transform:translate(-50%,-48%) scale(.97)}
+.sheet.dialog.show{opacity:1;transform:translate(-50%,-50%)}
+.sheet.full{inset:0;padding:0 var(--m0-gutter) calc(20px + env(safe-area-inset-bottom));transform:translateY(16px)}
+.sheet.full.show{opacity:1;transform:none}
+@media (min-width:600px){.sheet.full{inset:auto;left:50%;top:50%;width:480px;max-height:88vh;border-radius:16px;box-shadow:var(--m0-shadow-2);transform:translate(-50%,-48%) scale(.97)}.sheet.full.show{transform:translate(-50%,-50%)}}
+.sheet-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:12px}
 .sheet-head h2{font-size:var(--m0-fs-h3);font-weight:600;line-height:1.3;padding-top:8px}
+.sheet.full .sheet-head{position:sticky;top:0;z-index:2;background:var(--m0-bg);margin:0 calc(-1*var(--m0-gutter)) 12px;padding:calc(8px + env(safe-area-inset-top)) var(--m0-gutter) 8px;border-bottom:1px solid var(--m0-line);align-items:center;flex-direction:row-reverse;justify-content:flex-end}
+.sheet.full .sheet-head h2{padding-top:0;font-size:var(--m0-fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .close{width:var(--m0-tap);height:var(--m0-tap);border-radius:999px;border:0;background:var(--m0-surface-2);font-size:20px;flex:0 0 auto;display:grid;place-items:center}
+.sheet.full .close{background:none;margin-left:-10px}
 dl{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:var(--m0-fs-sm);margin:4px 0 16px}
 dt{color:var(--m0-text-2)}dd{margin:0;font-weight:500;min-width:0;overflow-wrap:anywhere}
 dd small{display:block;font-weight:400;color:var(--m0-text-2)}
 .photos{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px}
 .photos a{flex:0 0 72px;height:72px;border-radius:8px;overflow:hidden;background:var(--m0-surface-2)}
 .photos img{width:100%;height:100%;object-fit:cover;display:block}
-.edit{border:1px solid var(--m0-line);border-radius:var(--m0-radius-md);padding:12px;margin-bottom:14px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.edit label{font-size:var(--m0-fs-xs);color:var(--m0-text-2);display:block}
-.edit .field{margin-top:4px;height:44px}
-.edit .code{margin-top:10px;font-size:var(--m0-fs-sm)}
-.edit .code b{font-family:var(--m0-font-mono)}
+.ctr{border:1px solid var(--m0-line);border-radius:12px;padding:14px;margin-bottom:14px}
+.ctr-h{font-size:13px;font-weight:600;margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ctr-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.f label{display:block;font-size:12px;font-weight:500;color:var(--m0-text-2);margin-bottom:6px}
+.sel-wrap{position:relative}
+.sel{width:100%;height:40px;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 10px 0 12px;border:1px solid var(--m0-line);border-radius:8px;background:var(--m0-bg);font-size:14px;font-weight:500;box-shadow:0 1px 2px rgba(15,21,31,.05);text-align:left}
+.sel span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sel i{color:var(--m0-text-2);font-size:16px;flex:0 0 auto}
+.sel-pop{position:absolute;left:0;right:0;top:44px;z-index:5;min-width:160px;background:var(--m0-bg);border:1px solid var(--m0-line);border-radius:8px;box-shadow:var(--m0-shadow-2);padding:4px;max-height:232px;overflow:auto}
+.sel-pop button{display:flex;align-items:center;justify-content:space-between;width:100%;height:36px;padding:0 8px;border:0;border-radius:6px;background:none;font-size:14px;text-align:left}
+.sel-pop button:hover,.sel-pop button:focus-visible{background:var(--m0-surface-2);outline:none}
+.sel-pop button i{visibility:hidden;font-size:16px}
+.sel-pop button[aria-selected=true] i{visibility:visible}
+.step{display:flex;height:40px;border:1px solid var(--m0-line);border-radius:8px;overflow:hidden;background:var(--m0-bg);box-shadow:0 1px 2px rgba(15,21,31,.05)}
+.step button{flex:0 0 38px;border:0;background:none;font-size:18px;color:var(--m0-text-2)}
+.step button:active{background:var(--m0-surface-2)}
+.step input{flex:1;min-width:0;border:0;border-left:1px solid var(--m0-line);border-right:1px solid var(--m0-line);text-align:center;font-size:16px;font-weight:500;background:none;color:var(--m0-text);-moz-appearance:textfield}
+.step input::-webkit-inner-spin-button,.step input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.ctr-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:12px;border-top:1px solid var(--m0-line);font-size:13px;color:var(--m0-text-2)}
+.pill{font:500 12px var(--m0-font-mono);padding:3px 8px;border-radius:999px;background:var(--m0-info-bg);color:var(--m0-info);white-space:nowrap}
+.ctr-note{font-size:12px;color:var(--m0-text-2);margin-top:6px}
 .stack{display:flex;flex-direction:column;gap:8px}
 .chiprow{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .chiprow button{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--m0-border-strong);background:var(--m0-surface);font-size:var(--m0-fs-sm)}
@@ -261,7 +284,6 @@ body.out #app,body.out .sticky{display:none}
 
 <div class="scrim" id="scrim" hidden></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
-  <div class="grab"></div>
   <div class="sheet-head"><h2 id="sheetTitle"></h2><button class="close" id="sheetClose" aria-label="Close"><i class="ti ti-x"></i></button></div>
   <div id="sheetBody"></div>
 </div>
@@ -291,7 +313,7 @@ $('#markBtn').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
 
 /* ---------- bottom sheet ---------- */
 let lastFocus=null,sheetFor=null,sheetGen=0;
-function openSheet(title,html,forId){hideT();if($('#sheet').hidden)lastFocus=document.activeElement;sheetFor=forId||null;sheetGen++;
+function openSheet(title,html,forId,mode){hideT();$('#sheet').className='sheet '+(mode||'dialog')+($('#sheet').classList.contains('show')?' show':'');$('#sheetClose').innerHTML=`<i class="ti ti-${mode==='full'?'arrow-left':'x'}"></i>`;$('#sheetClose').setAttribute('aria-label',mode==='full'?'Back':'Close');if($('#sheet').hidden)lastFocus=document.activeElement;sheetFor=forId||null;sheetGen++;
  $('#sheetTitle').textContent=title;$('#sheetBody').innerHTML=html;
  const sc=$('#scrim'),sh=$('#sheet');sc.hidden=false;sh.hidden=false;document.body.classList.add('lock');
  requestAnimationFrame(()=>{sc.classList.add('show');sh.classList.add('show')})}
@@ -442,6 +464,13 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-ghs]');if(
 /* ---------- rendering ---------- */
 const TYPES=['drum','pail','jug','bottle','can','aerosol','box','bag','tote','cylinder','tube','other'];
 const MATERIALS=['metal','plastic','fiber','wood','glass','unknown'];
+const LABEL={fiber:'Fiber / cardboard',tote:'Tote (IBC)',can:'Can',other:'Other',unknown:'Not sure'};
+const label=x=>LABEL[x]||x[0].toUpperCase()+x.slice(1);
+/* shadcn-style select: a button that opens a small list with a check on the current choice */
+const select=(key,list,cur)=>`<div class="sel-wrap" data-key="${key}"><button type="button" class="sel" aria-haspopup="listbox"><span>${label(cur)}</span><i class="ti ti-selector"></i></button>
+ <div class="sel-pop" role="listbox" hidden>${list.map(x=>`<button type="button" role="option" data-val="${x}" aria-selected="${x===cur}">${label(x)}<i class="ti ti-check"></i></button>`).join('')}</div></div>`;
+const stepper=(id,val,min)=>`<div class="step"><button type="button" data-d="-1" aria-label="Less">−</button><input id="${id}" type="number" inputmode="numeric" min="${min}" value="${val}"><button type="button" data-d="1" aria-label="More">+</button></div>`;
+document.addEventListener('click',e=>{if(!e.target.closest('.sel-wrap'))document.querySelectorAll('.sel-pop').forEach(x=>x.hidden=true)});
 const hot=p=>!!p.hazard_class||p.signal_word==='DANGER';
 const contents=p=>p.inner_type||p.inner_count!=null?`${p.inner_count!=null?'~'+p.inner_count+' ':''}${p.inner_type?p.inner_type+'s':'items'}`:'';
 const shortSize=s=>s?s.split(/[(\n]/)[0].trim():'';
@@ -502,7 +531,6 @@ function detail(id){
  const m=p.manifest||{},packed=p.inner_type||p.container_type==='box'||p.container_type==='drum';
  const sdsLink=p.sds_key?`/api/files/${p.sds_key}`:p.sds_page_url||p.sds_url;
  const sdsText={pending:'Searching…',found:p.sds_source==='library'?'Found (saved from an earlier visit)':'Found',page_only:'Manufacturer page only',not_found:'Not found'}[p.sds_status];
- const opt=(list,cur)=>list.map(x=>`<option${x===cur?' selected':''}>${x}</option>`).join('');
  openSheet(p.product_name,`
   ${photos.length?`<div class="photos">${photos.map(k=>`<a href="/api/files/${encodeURI(k)}" target="_blank"><img src="/api/files/${encodeURI(k)}" alt="Label photo" loading="lazy"></a>`).join('')}</div>`:''}
   <dl>
@@ -514,24 +542,37 @@ function detail(id){
    <dt>Room</dt><dd>${esc(p.room)}</dd>
    <dt>SDS</dt><dd>${esc(sdsText)}</dd>
   </dl>
-  ${open?`<div class="edit">
-   <div class="grid2"><div><label for="eQty">Containers</label><input id="eQty" class="field" type="number" min="1" inputmode="numeric" value="${p.quantity}"></div>
-    <div><label for="eType">Type</label><select id="eType" class="field">${opt(TYPES,p.container_type)}</select></div>
-    <div><label for="eMat">Material</label><select id="eMat" class="field">${opt(MATERIALS,p.container_material)}</select></div>
-    ${packed?`<div><label for="eInner">Items inside</label><input id="eInner" class="field" type="number" min="0" inputmode="numeric" value="${p.inner_count??''}" placeholder="none"></div>`:''}</div>
-   <div class="code">${esc([shortSize(p.container_size),contents(p)&&'contains '+contents(p)].filter(Boolean).join(' · '))}
-    <div style="margin-top:4px">EPA manifest: ${m.code?`<b>${p.quantity} ${esc(m.code)}</b>`:`<span style="color:var(--m0-text-2)">${esc(m.hint)}</span>`}${p.count_edited?' · edited':''}</div>
-    ${p.count_note?`<div class="hint">${esc(p.count_note)}</div>`:''}</div>
+  ${open?`<div class="ctr">
+   <div class="ctr-h">Containers</div>
+   <div class="ctr-row">
+    <div class="f"><label for="eQty">Count</label>${stepper('eQty',p.quantity,1)}</div>
+    <div class="f"><label>Type</label>${select('containerType',TYPES,p.container_type)}</div>
+   </div>
+   <div class="ctr-row">
+    <div class="f"><label>Material</label>${select('containerMaterial',MATERIALS,p.container_material)}</div>
+    ${packed?`<div class="f"><label for="eInner">Items inside</label>${stepper('eInner',p.inner_count??0,0)}</div>`:'<div></div>'}
+   </div>
+   <div class="ctr-foot"><span>${esc([shortSize(p.container_size),contents(p)&&'contains '+contents(p)].filter(Boolean).join(' · ')||'Size not on label')}${p.count_edited?' · edited':''}</span>
+    <span class="pill" title="EPA manifest, Item 10">${m.code?`EPA ${p.quantity} ${esc(m.code)}`:'Lab pack'}</span></div>
+   ${m.code?'':'<div class="ctr-note">Small container: the manifest code comes from the box or drum it gets packed in.</div>'}
+   ${p.count_note?`<div class="ctr-note">${esc(p.count_note)}</div>`:''}
   </div>`:`<dl style="margin-top:-8px"><dt>Containers</dt><dd>${esc(summary(p))}</dd>
    <dt>EPA manifest</dt><dd>${m.code?esc(p.quantity+' '+m.code):'<small>'+esc(m.hint)+'</small>'}</dd></dl>`}
   <div class="stack">
    ${sdsLink?`<a class="btn wide" href="${esc(sdsLink)}" target="_blank" rel="noopener"><i class="ti ti-file-text"></i> ${p.sds_key?'View SDS':'Open SDS page'}</a>`:''}
    ${open?`<div class="grid2"><button class="btn danger" id="dRm"><i class="ti ti-trash"></i> Delete</button><button class="btn ok" id="dOk"><i class="ti ti-check"></i> ${p.confirmed?'Unconfirm':'Confirm'}</button></div>`:''}
-  </div>`,id);
+  </div>`,id,'full');
  if(!open)return;
- const field=(sel,key,num)=>{const el=$(sel);if(!el)return;el.addEventListener('change',async()=>{
-  const val=num?(el.value===''?null:Number(el.value)):el.value;if(await patch(id,{[key]:val},'Saved'))refreshSheet(id)})};
- field('#eQty','quantity',true);field('#eType','containerType');field('#eMat','containerMaterial');field('#eInner','innerCount',true);
+ // dropdowns save on pick; steppers save half a second after the last tap
+ document.querySelectorAll('#sheetBody .sel-wrap').forEach(w=>{const pop=w.querySelector('.sel-pop');
+  w.querySelector('.sel').onclick=e=>{e.stopPropagation();const show=pop.hidden;document.querySelectorAll('.sel-pop').forEach(x=>x.hidden=true);pop.hidden=!show};
+  pop.onclick=async e=>{const o=e.target.closest('[data-val]');if(!o)return;pop.hidden=true;
+   if(await patch(id,{[w.dataset.key]:o.dataset.val},'Saved'))refreshSheet(id)}});
+ let t;const save=(key,el,min)=>{clearTimeout(t);t=setTimeout(async()=>{const v=Math.max(min,parseInt(el.value)||min);
+  if(await patch(id,{[key]:v},'Saved'))refreshSheet(id)},500)};
+ [['eQty','quantity',1],['eInner','innerCount',0]].forEach(([el,key,min])=>{const inp=$('#'+el);if(!inp)return;
+  inp.addEventListener('input',()=>save(key,inp,min));
+  inp.parentElement.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{inp.value=Math.max(min,(parseInt(inp.value)||0)+ +b.dataset.d);save(key,inp,min)})});
  $('#dRm').onclick=()=>confirmDelete(p);
  $('#dOk').onclick=async()=>{const c=!p.confirmed;closeSheet();await patch(id,{confirmed:c},c?'Confirmed':'Marked as needs review')}}
 /* Deleting a product always asks first. */
