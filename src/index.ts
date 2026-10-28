@@ -38,9 +38,6 @@ export default {
       return new Response(obj.body, { headers });
     }
 
-    // The printed QR code points at /beta: send it to the app.
-    if (pathname === "/beta" || pathname.startsWith("/beta/")) return Response.redirect(`${url.origin}/`, 302);
-
     // Everything else (the page) is served from ./public
     return env.ASSETS.fetch(request);
   },
