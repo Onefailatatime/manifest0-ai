@@ -1,22 +1,17 @@
-// The inventory report as a PDF (US Letter), same content and look as the emailed report.
-// Drawn with pdf-lib: plain JavaScript, so it runs inside the Worker.
+// The inventory report as a PDF (US Letter). Drawn with pdf-lib: plain JavaScript, so it runs inside the Worker.
 
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import { manifestCode } from "./manifest";
 import { contentsText, type ProductRow, type VisitRow } from "./visit-agent";
 
-const NAVY = rgb(4 / 255, 29 / 255, 62 / 255);
-const YELLOW = rgb(243 / 255, 191 / 255, 43 / 255);
-const INK = rgb(15 / 255, 21 / 255, 31 / 255);
-const MUTED = rgb(90 / 255, 99 / 255, 114 / 255);
-const LINE = rgb(227 / 255, 230 / 255, 234 / 255);
-const TINT = rgb(245 / 255, 246 / 255, 248 / 255);
-const RED = rgb(180 / 255, 35 / 255, 24 / 255);
-const GREEN = rgb(25 / 255, 74 / 255, 37 / 255);
+const c = (hex: string) => rgb(parseInt(hex.slice(1, 3), 16) / 255, parseInt(hex.slice(3, 5), 16) / 255, parseInt(hex.slice(5, 7), 16) / 255);
+const NAVY = c("#041D3E"), YELLOW = c("#F3BF2B"), WHITE = c("#FFFFFF"), INK = c("#0F151F"), MUTED = c("#5A6372");
+const LINE = c("#E3E6EA"), TINT = c("#F5F6F8"), ZEBRA = c("#FAFBFC"), ROOM = c("#E8EEFB");
+const RED = c("#B42318"), RED_BG = c("#FEE4E2"), GREEN = c("#194A25"), GREEN_BG = c("#DAEDDB"), AMBER = c("#8A4B00"), AMBER_BG = c("#FDF0D5");
 
-const W = 612, H = 792, M = 40;                       // page size and margin (points)
+const W = 612, H = 792, M = 40, CW = W - 2 * M;   // page, margin, content width (points)
 // Table columns: #, product, containers, EPA code, DOT hazard, SDS
-const COLS = [{ x: M, w: 20 }, { x: M + 20, w: 196 }, { x: M + 216, w: 118 }, { x: M + 334, w: 62 }, { x: M + 396, w: 92 }, { x: M + 488, w: 44 }];
+const COLS = [{ x: M + 8, w: 18 }, { x: M + 28, w: 190 }, { x: M + 222, w: 112 }, { x: M + 338, w: 58 }, { x: M + 400, w: 86 }, { x: M + 488, w: 44 }];
 
 /** The built-in PDF fonts only cover Western characters; swap anything else so drawing never fails. */
 const clean = (s: unknown) =>
@@ -45,107 +40,167 @@ function wrap(text: string, font: PDFFont, size: number, width: number) {
   return lines;
 }
 
+/** "2026-10-29 21:16:50" -> "October 29, 2026" */
+const longDate = (sqlTime: string) =>
+  new Date(sqlTime.replace(" ", "T") + "Z").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+
 export async function reportPdf(visit: VisitRow, products: ProductRow[]) {
   const doc = await PDFDocument.create();
-  doc.setTitle(clean(`Chemical inventory - ${visit.site_name ?? "site"}`));
-  doc.setAuthor(clean(visit.user_email));
+  const site = visit.site_name ?? "Site";
+  doc.setTitle(clean(`Chemical inventory report - ${site}`));
+  doc.setAuthor(clean(visit.prepared_by ?? visit.user_email));
   doc.setCreator("Manifest0 AI");
   const reg = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
 
   let page: PDFPage = doc.addPage([W, H]);
   let y = H;
-  const text = (s: string, x: number, yy: number, size: number, font = reg, color = INK) =>
+  const text = (s: string, x: number, yy: number, size: number, font = reg, color: RGB = INK) =>
     page.drawText(clean(s), { x, y: yy, size, font, color });
+  const textRight = (s: string, right: number, yy: number, size: number, font = reg, color: RGB = INK) =>
+    text(s, right - font.widthOfTextAtSize(clean(s), size), yy, size, font, color);
+  /** Rounded rectangle; (x, top) is its top-left corner. */
+  const round = (x: number, top: number, w: number, h: number, r: number, color: RGB) =>
+    page.drawSvgPath(`M ${r} 0 H ${w - r} A ${r} ${r} 0 0 1 ${w} ${r} V ${h - r} A ${r} ${r} 0 0 1 ${w - r} ${h} H ${r} A ${r} ${r} 0 0 1 0 ${h - r} V ${r} A ${r} ${r} 0 0 1 ${r} 0 Z`,
+      { x, y: top, color });
+  /** Small colored label, e.g. DANGER or Attached; returns its height. */
+  const pill = (s: string, x: number, top: number, fg: RGB, bg: RGB) => {
+    const w = bold.widthOfTextAtSize(s, 7) + 10;
+    round(x, top, w, 13, 6.5, bg);
+    text(s, x + 5, top - 9.3, 7, bold, fg);
+    return 13;
+  };
 
-  // ---- header band with the logo, title and hazard tape
-  page.drawRectangle({ x: 0, y: H - 96, width: W, height: 96, color: NAVY });
-  const lx = M, ly = H - 70, ls = 34;                  // logo: yellow diamond with a navy 0
-  page.drawSvgPath(`M ${ls / 2} 0 L ${ls} ${ls / 2} L ${ls / 2} ${ls} L 0 ${ls / 2} Z`, { x: lx, y: ly + ls, color: YELLOW });
-  page.drawEllipse({ x: lx + ls / 2, y: ly + ls / 2, xScale: 4.3, yScale: 5.8, borderColor: NAVY, borderWidth: 2.6 });
-  text("Manifest0", lx + 46, H - 40, 11, bold, rgb(1, 1, 1));
-  text("AI", lx + 46 + bold.widthOfTextAtSize("Manifest0 ", 11), H - 40, 11, bold, YELLOW);
-  text(`Chemical inventory - ${visit.site_name ?? "Site"}`, lx + 46, H - 62, 18, bold, rgb(1, 1, 1));
-  text(`Prepared by ${visit.user_email} · ${visit.created_at.slice(0, 10)}`, lx + 46, H - 80, 9, reg, rgb(0.8, 0.84, 0.9));
-  for (let x = -10; x < W; x += 16) {                   // yellow/navy stripes
-    page.drawSvgPath(`M ${x} 0 L ${x + 8} 0 L ${x + 14} 6 L ${x + 6} 6 Z`, { x: 0, y: H - 96, color: YELLOW });
+  // ---- header: hazard tape on the top edge, logo, site name
+  const titleLines = wrap(site, bold, 24, CW).slice(0, 2);
+  function titleHeight() { return 82 + titleLines.length * 27; }
+  const HB = titleHeight();
+  page.drawRectangle({ x: 0, y: H - HB, width: W, height: HB, color: NAVY });
+  for (let x = -12; x < W; x += 18) {
+    page.drawSvgPath(`M ${x} 0 L ${x + 9} 0 L ${x + 17} 8 L ${x + 8} 8 Z`, { x: 0, y: H, color: YELLOW });
   }
-  y = H - 120;
+  const ls = 26, lx = M, ltop = H - 30;                                     // logo: yellow diamond with a navy 0
+  page.drawSvgPath(`M ${ls / 2} 0 L ${ls} ${ls / 2} L ${ls / 2} ${ls} L 0 ${ls / 2} Z`, { x: lx, y: ltop, color: YELLOW });
+  page.drawEllipse({ x: lx + ls / 2, y: ltop - ls / 2, xScale: 3.3, yScale: 4.5, borderColor: NAVY, borderWidth: 2 });
+  text("Manifest0", lx + 34, ltop - 17, 11, bold, WHITE);
+  text("AI", lx + 34 + bold.widthOfTextAtSize("Manifest0 ", 11), ltop - 17, 11, bold, YELLOW);
+  textRight("CHEMICAL INVENTORY REPORT", W - M, ltop - 16, 7.5, bold, YELLOW);
+  let ty = H - 86;
+  for (const l of titleLines) { text(l, M, ty, 24, bold, WHITE); ty -= 27; }
+  y = H - HB - 26;
 
-  // ---- summary boxes
+  // ---- details row
+  const clients = (JSON.parse(visit.recipients) as string[]).slice(1);
   const rooms = [...new Set(products.map((p) => p.room))];
-  const stats: [string, string][] = [
-    [String(products.length), "products"], [String(rooms.length), rooms.length === 1 ? "room" : "rooms"],
-    [String(products.reduce((a, p) => a + p.quantity, 0)), "containers"],
-    [`${products.filter((p) => p.sds_key).length}/${products.length}`, "SDS found"],
+  const details: [string, string[]][] = [
+    ["PREPARED BY", [visit.prepared_by ?? visit.user_email, ...(visit.company ? [visit.company] : [])]],
+    ["DATE", [longDate(visit.created_at)]],
+    ["CLIENT", clients.length ? clients : ["-"]],
+    ["ROOMS", [rooms.join(", ") || "-"]],
   ];
-  const bw = (W - 2 * M - 3 * 10) / 4;
-  stats.forEach(([v, l], i) => {
-    const x = M + i * (bw + 10);
-    page.drawRectangle({ x, y: y - 44, width: bw, height: 44, color: TINT });
-    text(v, x + 10, y - 22, 16, bold, NAVY);
-    text(l, x + 10, y - 36, 8.5, reg, MUTED);
+  const dw = CW / 4;
+  let detailH = 0;
+  details.forEach(([label, lines], i) => {
+    const x = M + i * dw;
+    text(label, x, y, 7, bold, MUTED);
+    let ly = y - 14;
+    for (const line of lines) for (const l of wrap(line, reg, 9.5, dw - 12).slice(0, 3)) { text(l, x, ly, 9.5, reg, INK); ly -= 12; }
+    detailH = Math.max(detailH, y - ly);
   });
-  y -= 70;
+  y -= detailH + 14;
+  page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.8, color: LINE });
+  y -= 18;
+
+  // ---- summary cards
+  const stats: [string, string][] = [
+    [String(products.length), products.length === 1 ? "product" : "products"],
+    [String(rooms.length), rooms.length === 1 ? "room" : "rooms"],
+    [String(products.reduce((a, p) => a + p.quantity, 0)), "containers"],
+    [`${products.filter((p) => p.sds_key).length} / ${products.length}`, "SDS found"],
+  ];
+  const gap = 10, cw = (CW - 3 * gap) / 4, ch = 50;
+  stats.forEach(([v, l], i) => {
+    const x = M + i * (cw + gap);
+    round(x, y, cw, ch, 6, TINT);
+    page.drawRectangle({ x, y: y - ch + 10, width: 3, height: ch - 20, color: YELLOW });
+    text(v, x + 14, y - 24, 18, bold, NAVY);
+    text(l, x + 14, y - 38, 8.5, reg, MUTED);
+  });
+  y -= ch + 24;
 
   // ---- table
   const header = () => {
-    ["#", "PRODUCT", "CONTAINERS", "EPA CODE", "DOT HAZARD", "SDS"].forEach((h, i) => text(h, COLS[i].x, y, 7.5, bold, MUTED));
-    y -= 8;
+    round(M, y, CW, 22, 5, TINT);
+    ["#", "PRODUCT", "CONTAINERS", "EPA CODE", "DOT HAZARD", "SDS"].forEach((h, i) => text(h, COLS[i].x, y - 14.5, 7, bold, MUTED));
+    y -= 30;
   };
+  const footerSpace = 50;
   const newPage = () => { page = doc.addPage([W, H]); y = H - M; header(); };
   header();
 
   let n = 0;
   for (const room of rooms) {
-    if (y < 110) newPage();
-    y -= 14;
-    text(room.toUpperCase(), M, y, 8, bold, MUTED);
-    y -= 5;
-    page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 1.5, color: NAVY });
+    const inRoom = products.filter((p) => p.room === room);
+    if (y < footerSpace + 70) newPage();
+    round(M, y, CW, 20, 4, ROOM);
+    text(room, M + 8, y - 13.5, 9, bold, NAVY);
+    textRight(`${inRoom.length} ${inRoom.length === 1 ? "product" : "products"}`, W - M - 8, y - 13.5, 8, reg, MUTED);
+    y -= 24;
 
-    for (const p of products.filter((pr) => pr.room === room)) {
+    inRoom.forEach((p, idx) => {
       n++;
       const m = manifestCode(p.container_type, p.container_material);
+      const name = wrap(p.product_name, bold, 9.5, COLS[1].w - 6);
+      const maker = p.manufacturer ? wrap(p.manufacturer, reg, 8, COLS[1].w - 6) : [];
       const size = [p.container_size?.split(/[(\n]/)[0].trim(), contentsText(p)].filter(Boolean).join(" · ");
-      // each cell: lines of [text, font, size, color]
-      const cells: [string, PDFFont, number, typeof INK][][] = [
-        [[String(n), reg, 8.5, MUTED]],
-        [
-          ...wrap(p.product_name, bold, 9, COLS[1].w - 8).map((l) => [l, bold, 9, INK] as [string, PDFFont, number, typeof INK]),
-          ...(p.manufacturer ? wrap(p.manufacturer, reg, 8, COLS[1].w - 8).map((l) => [l, reg, 8, MUTED] as [string, PDFFont, number, typeof INK]) : []),
-          ...(p.product_code ? [[clean(p.product_code), reg, 8, MUTED] as [string, PDFFont, number, typeof INK]] : []),
-        ],
-        [
-          [`${p.quantity} x ${p.container_type === "other" ? "container" : p.container_type}`, reg, 9, INK],
-          ...(size ? wrap(size, reg, 8, COLS[2].w - 8).map((l) => [l, reg, 8, MUTED] as [string, PDFFont, number, typeof INK]) : []),
-          ...(p.count_note ? wrap(p.count_note, reg, 7.5, COLS[2].w - 8).map((l) => [l, reg, 7.5, MUTED] as [string, PDFFont, number, typeof INK]) : []),
-        ],
-        [m.code ? [`${p.quantity} ${m.code}`, bold, 9, INK] : ["Lab pack", reg, 8.5, MUTED]],
-        [
-          ...(p.hazard_class ? wrap(p.hazard_class, reg, 8.5, COLS[4].w - 6).map((l) => [l, reg, 8.5, INK] as [string, PDFFont, number, typeof INK]) : [["-", reg, 8.5, MUTED] as [string, PDFFont, number, typeof INK]]),
-          ...(p.un_number ? [[clean(p.un_number), reg, 8, MUTED] as [string, PDFFont, number, typeof INK]] : []),
-          ...(p.signal_word && p.signal_word !== "none" ? [[p.signal_word, bold, 7.5, p.signal_word === "DANGER" ? RED : rgb(138 / 255, 75 / 255, 0)] as [string, PDFFont, number, typeof INK]] : []),
-        ],
-        [p.sds_key ? ["Attached", bold, 8.5, GREEN] : p.sds_page_url || p.sds_url ? ["Online", reg, 8.5, MUTED] : ["Not found", bold, 8.5, RED]],
-      ];
-      const rowH = Math.max(...cells.map((c) => c.reduce((h, [, , s]) => h + s + 3, 0))) + 12;
-      if (y - rowH < 60) newPage();
-      cells.forEach((cell, i) => {
-        let cy = y - 12;
-        for (const [t, f, s, c] of cell) { text(t, COLS[i].x, cy, s, f, c); cy -= s + 3; }
-      });
+      const sizeLines = size ? wrap(size, reg, 8, COLS[2].w - 6) : [];
+      const haz = p.hazard_class ? wrap(p.hazard_class, reg, 8.5, COLS[4].w - 4) : [];
+      const leftH = name.length * 12 + maker.length * 10 + (p.product_code ? 10 : 0);
+      const hazH = (haz.length || 1) * 11 + (p.un_number ? 10 : 0) + (p.signal_word && p.signal_word !== "none" ? 16 : 0);
+      const rowH = Math.max(leftH, 12 + sizeLines.length * 10, hazH, 16) + 16;
+      if (y - rowH < footerSpace) newPage();
+      if (idx % 2 === 1) page.drawRectangle({ x: M, y: y - rowH, width: CW, height: rowH, color: ZEBRA });
+
+      const top = y - 8;
+      text(String(n), COLS[0].x, top - 9, 8.5, reg, MUTED);
+      let ly = top - 9;
+      for (const l of name) { text(l, COLS[1].x, ly, 9.5, bold, INK); ly -= 12; }
+      for (const l of maker) { text(l, COLS[1].x, ly, 8, reg, MUTED); ly -= 10; }
+      if (p.product_code) text(p.product_code, COLS[1].x, ly, 8, reg, MUTED);
+
+      text(`${p.quantity} x ${p.container_type === "other" ? "container" : p.container_type}`, COLS[2].x, top - 9, 9, reg, INK);
+      ly = top - 21;
+      for (const l of sizeLines) { text(l, COLS[2].x, ly, 8, reg, MUTED); ly -= 10; }
+
+      if (m.code) text(`${p.quantity} ${m.code}`, COLS[3].x, top - 9, 9.5, bold, NAVY);
+      else text("Lab pack", COLS[3].x, top - 9, 8.5, reg, MUTED);
+
+      ly = top - 9;
+      if (haz.length) for (const l of haz) { text(l, COLS[4].x, ly, 8.5, reg, INK); ly -= 11; }
+      else { text("-", COLS[4].x, ly, 8.5, reg, MUTED); ly -= 11; }
+      if (p.un_number) { text(p.un_number, COLS[4].x, ly, 8, reg, MUTED); ly -= 10; }
+      if (p.signal_word && p.signal_word !== "none") {
+        const danger = p.signal_word === "DANGER";
+        pill(p.signal_word, COLS[4].x, ly + 6, danger ? RED : AMBER, danger ? RED_BG : AMBER_BG);
+      }
+
+      if (p.sds_key) pill("Attached", COLS[5].x, top - 1, GREEN, GREEN_BG);
+      else if (p.sds_page_url || p.sds_url) pill("Online", COLS[5].x, top - 1, MUTED, TINT);
+      else pill("Missing", COLS[5].x, top - 1, RED, RED_BG);
+
       y -= rowH;
-      page.drawLine({ start: { x: M, y: y + 2 }, end: { x: W - M, y: y + 2 }, thickness: 0.6, color: LINE });
-    }
+      page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.5, color: LINE });
+    });
+    y -= 12;
   }
 
-  // ---- footer on every page
+  // ---- footer: brand and page number
   const pages = doc.getPages();
   pages.forEach((pg, i) => {
-    pg.drawText(clean("Product data was read from label photos by AI and checked by the technician. Verify against the SDS before disposal."),
-      { x: M, y: 28, size: 7, font: reg, color: MUTED });
-    pg.drawText(`Page ${i + 1} of ${pages.length}`, { x: W - M - 50, y: 28, size: 7, font: reg, color: MUTED });
+    pg.drawLine({ start: { x: M, y: 40 }, end: { x: W - M, y: 40 }, thickness: 0.5, color: LINE });
+    pg.drawText("Manifest0 AI", { x: M, y: 26, size: 7.5, font: bold, color: MUTED });
+    const label = `Page ${i + 1} of ${pages.length}`;
+    pg.drawText(label, { x: W - M - reg.widthOfTextAtSize(label, 7.5), y: 26, size: 7.5, font: reg, color: MUTED });
   });
   return doc.save();
 }

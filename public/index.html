@@ -213,12 +213,12 @@ body.out #app,body.out .sticky{display:none}
 .badge-mark{width:60px;height:60px;display:block}
 .brand h1{font-size:2rem;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin-top:22px}
 .brand p{font-size:1.0625rem;opacity:.75;margin-top:10px}
-.signin .field{margin:0;height:52px;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:var(--m0-on-header)}
+.signin .field{margin:0 0 10px;height:52px;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:var(--m0-on-header)}
 .signin .field::placeholder{color:rgba(255,255,255,.55)}
 .signin .field:focus{outline:none;border-color:var(--m0-hazard)}
 .signin .field[aria-invalid=true]{border-color:#FCA5A5}
 .signin .err{color:#FCA5A5}
-.go-btn{width:100%;min-height:var(--m0-btn-h);margin-top:12px;border:0;border-radius:var(--m0-radius-md);background:var(--m0-hazard);color:var(--m0-on-hazard);font-size:1.0625rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+.go-btn{width:100%;min-height:var(--m0-btn-h);margin-top:4px;border:0;border-radius:var(--m0-radius-md);background:var(--m0-hazard);color:var(--m0-on-hazard);font-size:1.0625rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
 .demo-note{text-align:center;font-size:var(--m0-fs-xs);opacity:.55;margin-top:14px}
 @media (min-width:600px){.signin-in{justify-content:center}}
 
@@ -310,6 +310,8 @@ body.out #app,body.out .sticky{display:none}
       <p>Zero guesswork on hazardous waste.</p>
     </div>
     <label class="sr" for="me">Work email</label>
+    <input id="meName" class="field" type="text" autocomplete="name" placeholder="Your name">
+    <input id="meCompany" class="field" type="text" autocomplete="organization" placeholder="Company (optional)">
     <input id="me" class="field" type="email" inputmode="email" autocomplete="email" placeholder="Work email">
     <div class="err" id="signinErr" role="alert" hidden></div>
     <button class="go-btn" type="submit">Continue <i class="ti ti-arrow-right"></i></button>
@@ -439,14 +441,20 @@ async function load(){if(!visitId)return render();
  render();clearTimeout(pollTimer);if(busy())pollTimer=setTimeout(load,2500)}
 
 /* ---------- demo sign-in and account ---------- */
-function signIn(){const v=$('#me').value.trim();const ok=RE.test(v);
- $('#me').setAttribute('aria-invalid',!ok);$('#signinErr').hidden=ok;$('#signinErr').textContent=ok?'':'Enter your work email.';
- if(!ok)return;me=v;store.set('m0-me',me);render()}
+let myName=store.get('m0-name')||'',myCompany=store.get('m0-company')||'';
+$('#meName').value=myName;$('#meCompany').value=myCompany;
+function signIn(){const v=$('#me').value.trim(),n=$('#meName').value.trim(),ok=RE.test(v);
+ const msg=!n?'Enter your name.':!ok?'Enter your work email.':'';
+ $('#meName').setAttribute('aria-invalid',!n);$('#me').setAttribute('aria-invalid',!ok);$('#signinErr').hidden=!msg;$('#signinErr').textContent=msg;
+ if(msg)return;me=v;myName=n;myCompany=$('#meCompany').value.trim();
+ store.set('m0-me',me);store.set('m0-name',myName);store.set('m0-company',myCompany);render()}
 $('#signinForm').addEventListener('submit',e=>{e.preventDefault();signIn()});
 $('#accountBtn').onclick=account;
 function account(){
  const pick=store.get('m0-theme')||'system',seg=(v,icon,label)=>`<button data-theme-pick="${v}" aria-pressed="${pick===v}"><i class="ti ti-${icon}"></i>${label}</button>`;
- openSheet('Account',`${me?`<div class="who"><div class="avatar">${esc(me[0].toUpperCase())}</div><div><b>${esc(me)}</b><span>Reports are sent from and reply to this address</span></div></div>`:''}
+ openSheet('Account',`${me?`<div class="who"><div class="avatar">${esc((myName||me)[0].toUpperCase())}</div><div><b>${esc(myName||me)}</b><span>${esc(me)}</span></div></div>
+  <div class="set-lbl">Your details <span style="font-weight:400;color:var(--m0-text-2)">(shown on reports)</span></div>
+  <div class="grid2" style="margin-bottom:22px"><input id="accName" class="field" type="text" placeholder="Your name" value="${esc(myName)}" style="margin:0"><input id="accCompany" class="field" type="text" placeholder="Company" value="${esc(myCompany)}" style="margin:0"></div>`:''}
   ${me?`<div class="set-lbl">Locations</div>
   <div class="locs" id="locs"><div class="loc-empty">Loading…</div></div>
   <button class="btn wide" id="newLoc" style="margin:8px 0 22px"><i class="ti ti-plus"></i> New location</button>`:''}
@@ -456,6 +464,8 @@ function account(){
  document.querySelectorAll('[data-theme-pick]').forEach(b=>b.onclick=()=>{store.set('m0-theme',b.dataset.themePick);applyTheme();
   document.querySelectorAll('[data-theme-pick]').forEach(x=>x.setAttribute('aria-pressed',x===b))});
  if(!me)return;
+ $('#accName').onchange=e=>{const v=e.target.value.trim();if(!v){e.target.value=myName;return}myName=v;store.set('m0-name',v);render();toast('Saved')};
+ $('#accCompany').onchange=e=>{myCompany=e.target.value.trim();store.set('m0-company',myCompany);toast('Saved')};
  $('#signOut').onclick=()=>{closeSheet();me='';store.set('m0-me','');$('#me').value='';newWalk()};
  $('#newLoc').onclick=()=>{closeSheet();newWalk()};
  loadLocations()}
@@ -507,7 +517,7 @@ async function startWalk(){
  const bad=!site?'Enter the site name.':!clients.length?'Enter the client email.':clients.find(e=>!RE.test(e))?'Check this address: '+clients.find(e=>!RE.test(e)):!r?'Enter the first room.':'';
  $('#client').setAttribute('aria-invalid',!clients.length||clients.some(e=>!RE.test(e)));$('#room').setAttribute('aria-invalid',!r);
  $('#setupErr').hidden=!bad;$('#setupErr').textContent=bad;if(bad)return;
- try{const res=await api('/api/visits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recipients:[me,...clients],siteName:site})});
+ try{const res=await api('/api/visits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recipients:[me,...clients],siteName:site,preparedBy:myName,company:myCompany})});
   visitId=res.visitId;history.replaceState(null,'','?visit='+visitId);setRoom(r);await load()}
  catch(e){toast(e.message)}}
 
@@ -691,7 +701,7 @@ function render(){
  $('#pageTitle').hidden=roomPicker;$('#roomBtn').hidden=!roomPicker;$('#capture').hidden=!walking||!open;
  $('#pageTitle').textContent=!walking?'Start a site walk':v&&v.status==='done'?(v.email_sent_at?'Report sent':'Report saved'):v&&v.status==='failed'?'Report not sent':'Sending report';
  $('#roomTitle').textContent=room||'Choose a room';
- $('#accountBtn').innerHTML=me?esc(me[0].toUpperCase()):'<i class="ti ti-user"></i>';
+ $('#accountBtn').innerHTML=me?esc((myName||me)[0].toUpperCase()):'<i class="ti ti-user"></i>';
 
  // status card: stage title, real progress (0-100%) and the steps the agent took since this job began
  const reading=data?data.photos.pending:0,sds=sdsPending(),sending=v&&v.status==='finishing';

@@ -297,7 +297,7 @@ export class VisitAgent extends Agent<Env, VisitState> {
 export type VisitRow = {
   id: string; created_at: string; user_email: string; client_email: string; recipients: string; site_name: string | null;
   status: string; error: string | null; email_sent_at: string | null;
-  email_subject: string | null; email_message: string | null;
+  email_subject: string | null; email_message: string | null; prepared_by: string | null; company: string | null;
 };
 export type ProductRow = {
   id: string; visit_id: string; room: string; manufacturer: string | null; product_name: string; product_code: string | null;
@@ -419,7 +419,7 @@ export function defaultEmail(visit: VisitRow, products: ProductRow[]) {
       `Hello,\n\n` +
       `Here is the chemical inventory for ${site}: ${products.length} products in ${rooms} room${rooms === 1 ? "" : "s"}. ` +
       `The Safety Data Sheets (${withSds} of ${products.length}) and a spreadsheet of the inventory are attached.\n\n` +
-      `Best regards,\n${visit.user_email}`,
+      `Best regards,\n${[visit.prepared_by ?? visit.user_email, visit.company].filter(Boolean).join("\n")}`,
   };
 }
 
