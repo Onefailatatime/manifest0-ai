@@ -265,6 +265,15 @@ body.out #app,body.out .sticky{display:none}
 .csv td{min-width:90px;max-width:220px}
 .csv tr:last-child td{border-bottom:0}
 
+.nav-group{border:1px solid var(--m0-line);border-radius:12px;margin-bottom:22px;overflow:hidden}
+.nav-group .nav-row{margin:0;border:0;border-radius:0}
+.nav-group .nav-row+.nav-row{border-top:1px solid var(--m0-line)}
+.search{display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;margin-bottom:12px;border:1px solid var(--m0-line);border-radius:10px;background:var(--m0-surface-2)}
+.search i{color:var(--m0-text-2);font-size:18px}
+.search input{flex:1;min-width:0;border:0;background:none;outline:none;font-size:16px;color:var(--m0-text)}
+.search.in-menu{margin:2px 2px 6px;height:40px}
+.site-opts{max-height:260px;overflow-y:auto}
+
 /* room dropdown */
 .menu{position:absolute;right:var(--m0-gutter);left:var(--m0-gutter);top:calc(100% + 4px);z-index:30;background:var(--m0-bg);color:var(--m0-text);border:1px solid var(--m0-line);border-radius:var(--m0-radius-lg);box-shadow:var(--m0-shadow-2);padding:6px;max-height:60vh;overflow:auto}
 .menu .opt{display:flex;align-items:center;gap:10px;width:100%;min-height:var(--m0-tap);padding:0 10px;border:0;border-radius:var(--m0-radius-md);background:none;text-align:left;font-size:var(--m0-fs-body)}
@@ -465,10 +474,10 @@ function account(){
  openSheet('Account',`${me?`<div class="who"><div class="avatar">${esc((myName||me)[0].toUpperCase())}</div><div><b>${esc(myName||me)}</b><span>${esc(me)}</span></div></div>
   <div class="set-lbl">Your details <span style="font-weight:400;color:var(--m0-text-2)">(shown on reports)</span></div>
   <div class="grid2" style="margin-bottom:22px"><input id="accName" class="field" type="text" placeholder="Your name" value="${esc(myName)}" style="margin:0"><input id="accCompany" class="field" type="text" placeholder="Company" value="${esc(myCompany)}" style="margin:0"></div>`:''}
-  ${me?`<div class="set-lbl">Locations</div>
-  <div class="locs" id="locs"><div class="loc-empty">Loading…</div></div>
-  <button class="btn wide" id="newLoc" style="margin:8px 0 14px"><i class="ti ti-plus"></i> New location</button>
-  <button class="nav-row" id="openReports"><i class="ti ti-file-text"></i><span>Reports<small>Everything you've sent</small></span><i class="ti ti-chevron-right"></i></button>`:''}
+  ${me?`<div class="nav-group">
+   <button class="nav-row" id="openLocations"><i class="ti ti-map-pin"></i><span>Locations<small id="locCount">Walks you're working on</small></span><i class="ti ti-chevron-right"></i></button>
+   <button class="nav-row" id="openReports"><i class="ti ti-file-text"></i><span>Reports<small id="repCount">Everything you've sent</small></span><i class="ti ti-chevron-right"></i></button>
+  </div>`:''}
   <div class="set-lbl">Appearance</div>
   <div class="seg">${seg('light','sun','Light')}${seg('dark','moon','Dark')}${seg('system','device-mobile','Auto')}</div>
   ${me?`<button class="btn wide" id="signOut"><i class="ti ti-logout"></i> Sign out</button>`:''}`);
@@ -478,58 +487,69 @@ function account(){
  $('#accName').onchange=e=>{const v=e.target.value.trim();if(!v){e.target.value=myName;return}myName=v;store.set('m0-name',v);render();toast('Saved')};
  $('#accCompany').onchange=e=>{myCompany=e.target.value.trim();store.set('m0-company',myCompany);toast('Saved')};
  $('#signOut').onclick=()=>{closeSheet();me='';store.set('m0-me','');$('#me').value='';newWalk()};
- $('#newLoc').onclick=()=>{closeSheet();newWalk()};
+ $('#openLocations').onclick=locationsPage;
  $('#openReports').onclick=reportsPage;
- loadLocations()}
+ myVisits().then(list=>{if(!list||!$('#locCount'))return;const open=list.filter(inProgress).length,sent=list.length-open;
+  $('#locCount').textContent=open?plural(open,'walk')+' in progress':'No walks in progress';$('#repCount').textContent=sent?plural(sent,'report')+' sent':'Nothing sent yet'})}
 const inProgress=v=>v.status!=='done';
 /* Tapping the site name: a dropdown of your locations (switch, or start a new one). Deleting stays in Account. */
 async function toggleSites(show){const m=$('#siteMenu');show=show??m.hidden;m.hidden=!show;$('#siteRow').setAttribute('aria-expanded',show);
  if(!show)return;toggleRooms(false);
- let list;try{list=(await api('/api/visits?email='+encodeURIComponent(me))).visits}catch(e){list=null}
- $('#siteList').innerHTML=!list?'<div class="loc-empty">Your locations didn&#39;t load.</div>':list.filter(inProgress).map(v=>`<button class="opt${v.id===visitId?' cur':''}" data-site="${v.id}"><span>${esc(v.site_name||'Unnamed site')}</span><small>${plural(v.products,'product')}</small><i class="ti ti-check"></i></button>`).join('')}
+ let list=await myVisits();
+ if(!list){$('#siteList').innerHTML='<div class="loc-empty">Your locations didn&#39;t load.</div>';return}
+ list=list.filter(inProgress);
+ const opts=q=>{const hits=list.filter(v=>!q||(v.site_name||'').toLowerCase().includes(q.trim().toLowerCase()));
+  return hits.length?hits.map(v=>`<button class="opt${v.id===visitId?' cur':''}" data-site="${v.id}"><span>${esc(v.site_name||'Unnamed site')}</span><small>${plural(v.products,'product')}</small><i class="ti ti-check"></i></button>`).join(''):'<div class="loc-empty">No location matches.</div>'};
+ $('#siteList').innerHTML=(list.length>5?'<div class="search in-menu"><i class="ti ti-search"></i><input id="siteSearch" type="search" placeholder="Search locations" autocomplete="off"></div>':'')+'<div id="siteOpts" class="site-opts">'+opts('')+'</div>';
+ if($('#siteSearch')){$('#siteSearch').oninput=e=>{$('#siteOpts').innerHTML=opts(e.target.value)};$('#siteSearch').onclick=e=>e.stopPropagation();setTimeout(()=>$('#siteSearch').focus(),50)}}
 $('#siteRow').onclick=e=>{e.stopPropagation();toggleSites()};
 $('#siteList').addEventListener('click',e=>{const b=e.target.closest('[data-site]');if(!b)return;toggleSites(false);openVisit(b.dataset.site)});
 $('#siteNew').onclick=()=>{toggleSites(false);newWalk()};
 
-/* Locations = the sites you've walked, newest first. Tap one to go back to it. */
-async function loadLocations(){
- let list;try{list=(await api('/api/visits?email='+encodeURIComponent(me))).visits.filter(inProgress)}catch(e){list=null}
- const box=$('#locs');if(!box)return;
- if(!list){box.innerHTML='<div class="loc-empty">Your locations didn&#39;t load.</div>';return}
- if(!list.length){box.innerHTML='<div class="loc-empty">No walks in progress.</div>';return}
- const when=d=>new Date(d.replace(' ','T')+'Z').toLocaleDateString(undefined,{month:'short',day:'numeric'});
- const st={open:'In progress',finishing:'Sending',done:'Sent',failed:'Not sent'};
- box.innerHTML=list.map(v=>`<div class="loc-item${v.id===visitId?' cur':''}"><button class="loc" data-visit="${v.id}"><span><b>${esc(v.site_name||'Unnamed site')}</b>
-  <small>${plural(v.products,'product')} · ${when(v.created_at)} · ${st[v.status]||v.status}</small></span>${v.id===visitId?'<i class="ti ti-check"></i>':''}</button>
-  <button class="del" data-del-visit="${v.id}" aria-label="Delete ${esc(v.site_name||'site')}"><i class="ti ti-trash"></i></button></div>`).join('');
- box.querySelectorAll('[data-visit]').forEach(b=>b.onclick=()=>openVisit(b.dataset.visit));
- box.querySelectorAll('[data-del-visit]').forEach(b=>b.onclick=()=>confirmDeleteLocation(list.find(v=>v.id===b.dataset.delVisit)))}
-/* Reports: every walk you've sent, newest first. Tap to read the PDF; the spreadsheet is one tap away. */
-async function reportsPage(){
- openSheet('Reports','<div class="locs" id="reps"><div class="loc-empty">Loading…</div></div>',null,'full');
+const myVisits=async()=>{try{return (await api('/api/visits?email='+encodeURIComponent(me))).visits}catch(e){return null}};
+const dateShort=d=>new Date(d.replace(' ','T')+'Z').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+/* A full-page list with a search box on top (Locations and Reports). */
+async function listPage({title,top='',filter,match,row,empty,none,wire}){
+ openSheet(title,`<div class="search"><i class="ti ti-search"></i><input id="lpSearch" type="search" placeholder="Search" autocomplete="off"></div>${top}
+  <div class="locs" id="lpList"><div class="loc-empty">Loading…</div></div>`,null,'full');
  $('#sheetClose').onclick=account;
- let list;try{list=(await api('/api/visits?email='+encodeURIComponent(me))).visits.filter(v=>v.status==='done')}catch(e){list=null}
- const box=$('#reps');if(!box)return;
- if(!list){box.innerHTML='<div class="loc-empty">Your reports didn&#39;t load.</div>';return}
- if(!list.length){box.innerHTML='<div class="loc-empty">No reports yet. They show up here after you send one.</div>';return}
- const when=d=>new Date(d.replace(' ','T')+'Z').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
- box.innerHTML=list.map(v=>{const to=JSON.parse(v.recipients||'[]').slice(1).join(', ');
-  return `<div class="loc-item"><button class="loc" data-rep="${v.id}"><span><b>${esc(v.site_name||'Unnamed site')}</b>
-   <small>${when(v.created_at)} · ${plural(v.products,'product')}${to?' · '+esc(to):''}</small></span><i class="ti ti-file-type-pdf"></i></button>
-   <button class="del" data-csv="${v.id}" aria-label="Spreadsheet"><i class="ti ti-file-spreadsheet"></i></button></div>`}).join('');
- const site=id=>(list.find(v=>v.id===id).site_name||'site');
- box.querySelectorAll('[data-rep]').forEach(b=>b.onclick=()=>viewPdf({url:`/api/visits/${b.dataset.rep}/report.pdf`,title:site(b.dataset.rep),name:`Inventory report - ${site(b.dataset.rep)}.pdf`,back:reportsPage}));
- box.querySelectorAll('[data-csv]').forEach(b=>b.onclick=()=>viewCsv({url:`/api/visits/${b.dataset.csv}/inventory.csv`,title:site(b.dataset.csv),name:`Inventory - ${site(b.dataset.csv)}.csv`,back:reportsPage}))}
+ const all=await myVisits();const box=$('#lpList');if(!box)return;
+ if(!all){box.innerHTML='<div class="loc-empty">This list didn&#39;t load.</div>';return}
+ const list=all.filter(filter);
+ const show=q=>{q=q.trim().toLowerCase();const hits=list.filter(v=>!q||match(v).toLowerCase().includes(q));
+  box.innerHTML=hits.length?hits.map(row).join(''):`<div class="loc-empty">${list.length?none:empty}</div>`;wire(box,list)};
+ $('#lpSearch').addEventListener('input',e=>show(e.target.value));show('')}
+/* Locations: walks still in progress. Tap to continue, trash to delete, or start a new one. */
+function locationsPage(){
+ listPage({title:'Locations',top:'<button class="btn wide" id="newLoc" style="margin:0 0 12px"><i class="ti ti-plus"></i> New location</button>',
+  filter:inProgress,match:v=>v.site_name||'',empty:'No walks in progress.',none:'No location matches.',
+  row:v=>`<div class="loc-item${v.id===visitId?' cur':''}"><button class="loc" data-visit="${v.id}"><span><b>${esc(v.site_name||'Unnamed site')}</b>
+   <small>${plural(v.products,'product')} · ${dateShort(v.created_at)}</small></span>${v.id===visitId?'<i class="ti ti-check"></i>':''}</button>
+   <button class="del" data-del-visit="${v.id}" aria-label="Delete ${esc(v.site_name||'site')}"><i class="ti ti-trash"></i></button></div>`,
+  wire:(box,list)=>{box.querySelectorAll('[data-visit]').forEach(b=>b.onclick=()=>openVisit(b.dataset.visit));
+   box.querySelectorAll('[data-del-visit]').forEach(b=>b.onclick=()=>confirmDeleteLocation(list.find(v=>v.id===b.dataset.delVisit)))}});
+ $('#newLoc').onclick=()=>{closeSheet();newWalk()}}
+/* Reports: every walk you've sent. Tap for the PDF; the spreadsheet icon opens the spreadsheet. Search by site or client. */
+function reportsPage(){
+ const site=v=>v.site_name||'site',to=v=>JSON.parse(v.recipients||'[]').slice(1).join(', ');
+ listPage({title:'Reports',filter:v=>v.status==='done',match:v=>`${v.site_name||''} ${to(v)}`,
+  empty:'No reports yet. They show up here after you send one.',none:'No report matches.',
+  row:v=>`<div class="loc-item"><button class="loc" data-rep="${v.id}"><span><b>${esc(v.site_name||'Unnamed site')}</b>
+   <small>${dateShort(v.created_at)} · ${plural(v.products,'product')}${to(v)?' · '+esc(to(v)):''}</small></span><i class="ti ti-file-type-pdf"></i></button>
+   <button class="del" data-csv="${v.id}" aria-label="Spreadsheet"><i class="ti ti-file-spreadsheet"></i></button></div>`,
+  wire:(box,list)=>{const v=id=>list.find(x=>x.id===id);
+   box.querySelectorAll('[data-rep]').forEach(b=>b.onclick=()=>viewPdf({url:`/api/visits/${b.dataset.rep}/report.pdf`,title:site(v(b.dataset.rep)),name:`Inventory report - ${site(v(b.dataset.rep))}.pdf`,back:reportsPage}));
+   box.querySelectorAll('[data-csv]').forEach(b=>b.onclick=()=>viewCsv({url:`/api/visits/${b.dataset.csv}/inventory.csv`,title:site(v(b.dataset.csv)),name:`Inventory - ${site(v(b.dataset.csv))}.csv`,back:reportsPage}))}})}
 
 /* Deleting a site asks first; afterwards you're back in the account menu. */
 function confirmDeleteLocation(v){
  openSheet('Delete this location?',`<p style="font-size:15px"><b>${esc(v.site_name||'Unnamed site')}</b> and its ${plural(v.products,'product')} will be removed from your locations.</p>
   <div class="grid2" style="margin-top:18px"><button class="btn" id="locNo">Cancel</button><button class="btn danger" id="locYes"><i class="ti ti-trash"></i> Yes, delete</button></div>`);
- $('#locNo').onclick=account;
+ $('#locNo').onclick=locationsPage;
  $('#locYes').onclick=async()=>{
   try{await api(`/api/visits/${v.id}?email=${encodeURIComponent(me)}`,{method:'DELETE'})}catch(e){toast(e.message);return}
   if(v.id===visitId)newWalk();
-  toast('Deleted '+(v.site_name||'location'));account()}}
+  toast('Deleted '+(v.site_name||'location'));locationsPage()}}
 async function openVisit(id){
  closeSheet();if(id===visitId)return;
  clearTimeout(pollTimer);tray.forEach(t=>URL.revokeObjectURL(t.url));tray=[];renderTray();
