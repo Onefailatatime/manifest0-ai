@@ -1,6 +1,23 @@
 {
   "name": "manifest0-ai",
   "private": true,
-  "scripts": { "dev": "wrangler dev", "deploy": "wrangler deploy" },
-  "devDependencies": { "wrangler": "^4.0.0" }
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler d1 migrations apply manifest0-db --remote && wrangler deploy",
+    "types": "wrangler types",
+    "check": "tsc && tsc -p test",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.3",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.154.0"
+  },
+  "dependencies": {
+    "agents": "^0.31.0",
+    "pdf-lib": "^1.17.1"
+  }
 }

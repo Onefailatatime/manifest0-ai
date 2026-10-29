@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<title>Manifest0 AI</title>
+<link rel="icon" href="logo-navy.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<!-- Brand colors from Jessyka's design: navy (light), steel gray (dark), hazard yellow. -->
+<link rel="stylesheet" href="tokens.css">
+<script>
+(function(){var q=new URLSearchParams(location.search).get('theme'),s=null;try{s=localStorage.getItem('m0-theme')}catch(e){}
+var t=q||s||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();
+</script>
+<style>
+:root{--m0-hazard:#F3BF2B;--m0-on-hazard:#111111;--m0-bg:#FFFFFF;--m0-line:#E3E6EA;
+ --m0-info-bg:#E8EEFB;--m0-info:#1C5FE4;--m0-hot-bg:#FDEEE0;--m0-hot:#C2410C}
+[data-theme=dark]{--m0-bg:#252C32;--m0-line:#3B444B;--m0-info-bg:#343D43;--m0-info:#C9CED4;--m0-hot-bg:#3B2A14;--m0-hot:#FDBA74}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--m0-bg:#252C32;--m0-line:#3B444B;--m0-info-bg:#343D43;--m0-info:#C9CED4;--m0-hot-bg:#3B2A14;--m0-hot:#FDBA74}}
+
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+*{scrollbar-width:none}
+*::-webkit-scrollbar{display:none}
+body{font-family:var(--m0-font-sans);font-size:var(--m0-fs-body);line-height:var(--m0-lh-body);color:var(--m0-text);background:var(--m0-bg);-webkit-font-smoothing:antialiased}
+body.lock{overflow:hidden}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--m0-focus);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+[hidden]{display:none!important}
+.wrap{max-width:var(--m0-content-max);margin:0 auto;padding-bottom:120px}
+
+/* top: small logo + account, then where you are (site, and the room as a dropdown) */
+.top{position:relative;background:var(--m0-bg);color:var(--m0-text);padding:calc(10px + env(safe-area-inset-top)) var(--m0-gutter) 2px}
+.bar{display:flex;align-items:center;justify-content:space-between;min-height:var(--m0-tap)}
+.mark{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;letter-spacing:-.01em;background:none;border:0;padding:0;color:inherit}
+.logo{width:28px;height:28px;display:block}
+.logo img{width:100%;height:100%;display:block}
+.on-dark{display:none!important}
+[data-theme=dark] .on-dark{display:block!important}
+[data-theme=dark] .on-light{display:none!important}
+.avatar-btn{width:34px;height:34px;border-radius:50%;border:0;background:var(--m0-primary);color:var(--m0-on-primary);font-weight:600;font-size:14px;display:grid;place-items:center}
+[data-theme=dark] .avatar-btn{background:var(--m0-hazard);color:var(--m0-on-hazard)}
+.ctx{padding-top:14px}
+.site{display:flex;align-items:center;gap:6px;max-width:100%;border:0;background:none;padding:0;color:var(--m0-text);font-size:1.25rem;font-weight:600;letter-spacing:-.01em;text-align:left}
+.site i{font-size:20px;color:var(--m0-text-2);flex:0 0 auto}
+.site #siteLine{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.site .chev-s{font-size:16px}
+.ctx h1{font-size:1.375rem;font-weight:600;letter-spacing:-.01em;line-height:1.25;margin-top:2px}
+.room-box{margin-top:10px;width:100%;height:42px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;border:1px solid var(--m0-line);border-radius:10px;background:var(--m0-bg);font-size:15px;font-weight:500;box-shadow:0 1px 2px rgba(15,21,31,.05);text-align:left}
+.room-box>span{display:flex;align-items:center;gap:8px;min-width:0}
+.room-box #roomTitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.room-box i{color:var(--m0-text-2);font-size:17px;flex:0 0 auto}
+.room-box[aria-expanded=true]{border-color:var(--m0-border-strong)}
+
+main{padding:0 var(--m0-gutter)}
+
+/* setup form */
+.lbl{display:block;font-size:var(--m0-fs-sm);font-weight:500;margin-top:18px}
+.lbl span{font-weight:400;color:var(--m0-text-2)}
+.field{width:100%;height:var(--m0-input-h);margin-top:6px;padding:0 12px;border-radius:var(--m0-radius-md);border:1px solid var(--m0-border-strong);background:var(--m0-surface);color:var(--m0-text);font-size:16px}
+input::placeholder{color:var(--m0-text-muted)}
+.field[aria-invalid=true]{border-color:var(--m0-error);border-width:2px}
+.hint{font-size:var(--m0-fs-xs);color:var(--m0-text-2);margin-top:6px}
+.err{font-size:var(--m0-fs-xs);color:var(--m0-error);margin-top:6px;font-weight:500}
+.intro{font-size:var(--m0-fs-sm);color:var(--m0-text-2);margin-top:16px}
+
+/* the yellow camera button */
+.snap{display:flex;align-items:center;gap:12px;width:100%;margin:16px 0 4px;padding:14px;border:0;border-radius:var(--m0-radius-lg);background:var(--m0-hazard);color:var(--m0-on-hazard);text-align:left}
+.snap .dot{width:46px;height:46px;border-radius:50%;background:var(--m0-on-hazard);color:var(--m0-hazard);display:grid;place-items:center;font-size:24px;flex:0 0 46px}
+.snap b{display:block;font-size:1.0625rem;font-weight:600}
+.snap span{font-size:var(--m0-fs-sm)}
+
+/* photos picked, not yet sent */
+.tray{margin-top:8px;padding:10px;border:1px solid var(--m0-line);border-radius:var(--m0-radius-lg)}
+.thumbs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.th{position:relative;flex:0 0 72px;height:72px;border-radius:8px;overflow:hidden;background:var(--m0-surface-2)}
+.th img{width:100%;height:100%;object-fit:cover;display:block}
+.th button{position:absolute;top:4px;right:4px;width:30px;height:30px;border-radius:50%;border:2px solid #fff;background:rgba(0,0,0,.7);color:#fff;font-size:16px;display:grid;place-items:center;padding:0}
+.tray .go{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;font-size:var(--m0-fs-sm)}
+.tray .go .btn{white-space:nowrap}
+.clear{background:none;border:0;padding:0;min-height:var(--m0-tap);color:var(--m0-text-2);font-size:var(--m0-fs-sm)}
+.btn{min-height:var(--m0-tap);border-radius:var(--m0-radius-md);font-weight:600;font-size:var(--m0-fs-sm);display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 14px;border:1px solid var(--m0-border-strong);background:var(--m0-surface);color:var(--m0-text);text-decoration:none}
+.btn.dark{background:var(--m0-primary);color:var(--m0-on-primary);border-color:transparent}
+.btn:disabled{opacity:.4}
+.btn.danger{background:var(--m0-error-bg);color:var(--m0-error);border-color:transparent}
+.btn.ok{background:var(--m0-success-bg);color:var(--m0-success);border-color:transparent}
+.btn.wide{width:100%}
+
+/* status card while Manifest0 AI works */
+.status{display:flex;align-items:center;gap:12px;margin-top:12px;padding:14px;border:1px solid var(--m0-line);border-radius:14px;transition:opacity .5s}
+.status.fade{opacity:0}
+.st-title{display:block;font-weight:600;font-size:15px}
+.m0-loader{width:44px;height:44px;flex:0 0 44px}
+/* the diamond fills from the bottom like a tank, then the 0 traces itself, on a loop */
+/* the logo is the progress bar: the diamond fills up and the 0 draws itself, once, from 0 to 100% */
+.ld-fill{transition:transform 2.4s linear}
+.ld-zero{stroke-dasharray:100;transition:stroke-dashoffset 2.4s linear}
+.feed{list-style:none;margin:6px 0 0;padding:0;font-size:12px;color:var(--m0-text-2)}
+.feed li{display:flex;align-items:center;gap:6px;min-height:20px}
+.feed li i{font-size:14px;color:var(--m0-success)}
+.feed li:last-child{color:var(--m0-text)}
+.spin{animation:spin .9s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.banner{margin-top:16px;padding:12px;border-radius:var(--m0-radius-md);font-size:var(--m0-fs-sm);background:var(--m0-success-bg);color:var(--m0-success)}
+.banner.warn{background:var(--m0-warning-bg);color:var(--m0-warning)}
+.banner.bad{background:var(--m0-error-bg);color:var(--m0-error)}
+.banner a{color:inherit;font-weight:600}
+
+/* inventory list */
+.count{font-size:var(--m0-fs-xs);color:var(--m0-text-2);margin:20px 0 2px;display:flex;justify-content:space-between}
+.room{font-size:var(--m0-fs-xs);font-weight:600;color:var(--m0-text-2);margin:14px 0 0}
+.item{display:flex;align-items:center;border-bottom:1px solid var(--m0-line)}
+.item:last-child{border-bottom:0}
+.row{display:flex;align-items:center;gap:12px;flex:1;min-width:0;padding:11px 0;border:0;background:none;text-align:left}
+.del{flex:0 0 var(--m0-tap);height:var(--m0-tap);margin-right:-10px;border:0;background:none;color:var(--m0-text-2);font-size:20px;display:grid;place-items:center;border-radius:999px}
+.del:active{color:var(--m0-error);background:var(--m0-error-bg)}
+.ic{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;flex:0 0 36px;font-size:19px;background:var(--m0-info-bg);color:var(--m0-info)}
+.ic.num{font-weight:600;font-size:var(--m0-fs-sm);font-family:var(--m0-font-mono)}
+.ic.hot{background:var(--m0-hot-bg);color:var(--m0-hot)}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .t span{display:block;font-size:var(--m0-fs-xs);color:var(--m0-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chips{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:0 0 auto}
+.chip-row{display:flex;align-items:center;gap:4px}
+.mini-ghs{width:22px;height:22px;display:block}
+.tag-s{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 7px;border-radius:999px;font:600 11px var(--m0-font-sans);letter-spacing:.02em;white-space:nowrap}
+.tag-s i{font-size:12px}
+.tag-s.ok{background:var(--m0-success-bg);color:var(--m0-success)}
+.tag-s.wait{background:var(--m0-surface-2);color:var(--m0-text-2)}
+.tag-s.bad{background:var(--m0-error-bg);color:var(--m0-error)}
+.chip{font:500 11px var(--m0-font-mono);border-radius:5px;padding:2px 6px;white-space:nowrap;background:var(--m0-success-bg);color:var(--m0-success)}
+.chip.wait{background:var(--m0-surface-2);color:var(--m0-text-2)}
+.chip.hot{background:var(--m0-hot-bg);color:var(--m0-hot)}
+.chip.bad{background:var(--m0-error-bg);color:var(--m0-error)}
+.ok-mark{color:var(--m0-success);font-size:16px}
+.empty{text-align:center;color:var(--m0-text-2);font-size:var(--m0-fs-sm);padding:28px 0}
+
+/* bottom button */
+.sticky{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--m0-bg);border-top:1px solid var(--m0-line);padding:10px var(--m0-gutter) calc(10px + env(safe-area-inset-bottom))}
+.sticky .in{max-width:var(--m0-content-max);margin:0 auto}
+.primary{width:100%;min-height:var(--m0-btn-h);border-radius:var(--m0-radius-md);border:0;background:var(--m0-primary);color:var(--m0-on-primary);font-size:1.0625rem;font-weight:600}
+[data-theme=dark] .primary{background:transparent;color:var(--m0-hazard);border:1.5px solid var(--m0-hazard)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .primary{background:transparent;color:var(--m0-hazard);border:1.5px solid var(--m0-hazard)}}
+.primary[aria-disabled=true]{opacity:.4}
+
+/* bottom sheet */
+/* overlays: "dialog" = card in the middle with the page blurred; "full" = full-screen page (product details) */
+.scrim{position:fixed;inset:0;background:rgba(10,14,20,.35);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);z-index:40;opacity:0;transition:opacity .2s}
+.scrim.show{opacity:1}
+.sheet{position:fixed;z-index:50;background:var(--m0-bg);overflow:auto;opacity:0;transition:opacity .2s,transform .2s cubic-bezier(.2,.8,.2,1)}
+.sheet.dialog{left:50%;top:50%;width:min(360px,calc(100% - 32px));max-height:85vh;border-radius:16px;padding:18px 18px 20px;box-shadow:var(--m0-shadow-2);transform:translate(-50%,-48%) scale(.97)}
+.sheet.dialog.show{opacity:1;transform:translate(-50%,-50%)}
+/* full: edge to edge on every screen; the content stays phone-width in the middle */
+.sheet.full{inset:0;padding:0 0 calc(20px + env(safe-area-inset-bottom));transform:translateY(16px)}
+.sheet.full #sheetBody{max-width:var(--m0-content-max);margin:0 auto;padding:0 var(--m0-gutter)}
+.sheet.full.show{opacity:1;transform:none}
+.sheet-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:12px}
+.sheet-head h2{font-size:var(--m0-fs-h3);font-weight:600;line-height:1.3;padding-top:8px}
+.sheet.full .sheet-head{position:sticky;top:0;z-index:2;background:var(--m0-bg);margin:0 0 12px;padding:calc(8px + env(safe-area-inset-top)) max(var(--m0-gutter),calc(50% - var(--m0-content-max)/2 + var(--m0-gutter))) 8px;border-bottom:1px solid var(--m0-line);align-items:center;flex-direction:row-reverse;justify-content:flex-end}
+.sheet.full .sheet-head h2{padding-top:0;font-size:var(--m0-fs-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.close{width:var(--m0-tap);height:var(--m0-tap);border-radius:999px;border:0;background:var(--m0-surface-2);font-size:20px;flex:0 0 auto;display:grid;place-items:center}
+.sheet.full .close{background:none;margin-left:-10px}
+dl{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:var(--m0-fs-sm);margin:4px 0 16px}
+dt{color:var(--m0-text-2)}dd{margin:0;font-weight:500;min-width:0;overflow-wrap:anywhere}
+dd small{display:block;font-weight:400;color:var(--m0-text-2)}
+.photos{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px}
+.photos a{flex:0 0 72px;height:72px;border-radius:8px;overflow:hidden;background:var(--m0-surface-2)}
+.photos img{width:100%;height:100%;object-fit:cover;display:block}
+.ctr{border:1px solid var(--m0-line);border-radius:12px;padding:14px;margin-bottom:14px}
+.ctr-h{font-size:13px;font-weight:600;margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ctr-row{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-bottom:12px}
+.ctr-row.lead{grid-template-columns:auto minmax(0,1fr)}
+.ctr-row.trail{grid-template-columns:minmax(0,1fr) auto}
+.f label{display:block;font-size:12px;font-weight:500;color:var(--m0-text-2);margin-bottom:6px}
+.sel-wrap{position:relative}
+.sel{width:100%;height:40px;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 10px 0 12px;border:1px solid var(--m0-line);border-radius:8px;background:var(--m0-bg);font-size:14px;font-weight:500;box-shadow:0 1px 2px rgba(15,21,31,.05);text-align:left}
+.sel span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sel i{color:var(--m0-text-2);font-size:16px;flex:0 0 auto}
+.sel-pop{position:absolute;left:0;right:0;top:44px;z-index:5;min-width:160px;background:var(--m0-bg);border:1px solid var(--m0-line);border-radius:8px;box-shadow:var(--m0-shadow-2);padding:4px;max-height:232px;overflow:auto}
+.sel-pop button{display:flex;align-items:center;justify-content:space-between;width:100%;height:36px;padding:0 8px;border:0;border-radius:6px;background:none;font-size:14px;text-align:left}
+.sel-pop button:hover,.sel-pop button:focus-visible{background:var(--m0-surface-2);outline:none}
+.sel-pop button i{visibility:hidden;font-size:16px}
+.sel-pop button[aria-selected=true] i{visibility:visible}
+.step{display:flex;width:112px;height:40px;border:1px solid var(--m0-line);border-radius:8px;overflow:hidden;background:var(--m0-bg);box-shadow:0 1px 2px rgba(15,21,31,.05)}
+.step button{flex:0 0 34px;border:0;background:none;font-size:18px;color:var(--m0-text-2)}
+.step button:active{background:var(--m0-surface-2)}
+.step input{flex:1;min-width:0;border:0;border-left:1px solid var(--m0-line);border-right:1px solid var(--m0-line);text-align:center;font-size:16px;font-weight:500;background:none;color:var(--m0-text);-moz-appearance:textfield}
+.step input::-webkit-inner-spin-button,.step input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.ctr-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:12px;border-top:1px solid var(--m0-line);font-size:13px;color:var(--m0-text-2)}
+.pill{font:500 12px var(--m0-font-mono);padding:3px 8px;border-radius:999px;background:var(--m0-info-bg);color:var(--m0-info);white-space:nowrap}
+.ctr-note{font-size:12px;color:var(--m0-text-2);margin-top:6px}
+.stack{display:flex;flex-direction:column;gap:8px}
+.chiprow{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chiprow button{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--m0-border-strong);background:var(--m0-surface);font-size:var(--m0-fs-sm)}
+
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translate(-50%,20px);z-index:60;background:var(--m0-text);color:var(--m0-bg);padding:10px 14px;border-radius:var(--m0-radius-md);font-size:var(--m0-fs-sm);font-weight:500;opacity:0;pointer-events:none;transition:all .2s;max-width:calc(100% - 32px);display:flex;align-items:center;gap:12px}
+body.lock .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top))}
+.toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+/* sign-in: all navy, hazard tape across the top, everything in one column */
+.signin{min-height:100vh;min-height:100dvh;background:var(--m0-header);color:var(--m0-on-header);display:flex;flex-direction:column}
+body.out{background:var(--m0-header)}
+body.out #app,body.out .sticky{display:none}
+.stripe{height:14px;flex:0 0 auto;background:repeating-linear-gradient(-45deg,var(--m0-hazard) 0 14px,var(--m0-header) 14px 28px);margin-top:env(safe-area-inset-top)}
+.signin-in{flex:1;width:100%;max-width:var(--m0-content-max);margin:0 auto;display:flex;flex-direction:column;justify-content:flex-end;padding:32px 24px calc(28px + env(safe-area-inset-bottom))}
+.brand{margin-bottom:28px}
+.badge-mark{width:60px;height:60px;display:block}
+.brand h1{font-size:2rem;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin-top:22px}
+.brand p{font-size:1.0625rem;opacity:.75;margin-top:10px}
+.signin .field{margin:0 0 10px;height:52px;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:var(--m0-on-header)}
+.signin .field::placeholder{color:rgba(255,255,255,.55)}
+.signin .field:focus{outline:none;border-color:var(--m0-hazard)}
+.signin .field[aria-invalid=true]{border-color:#FCA5A5}
+.signin .err{color:#FCA5A5}
+.go-btn{width:100%;min-height:var(--m0-btn-h);margin-top:4px;border:0;border-radius:var(--m0-radius-md);background:var(--m0-hazard);color:var(--m0-on-hazard);font-size:1.0625rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+.demo-note{text-align:center;font-size:var(--m0-fs-xs);opacity:.55;margin-top:14px}
+@media (min-width:600px){.signin-in{justify-content:center}}
+
+/* GHS hazard pictograms (official images) in the product page */
+.ghs-row{display:flex;flex-wrap:wrap;gap:8px;padding:2px 0}
+.ghs{width:46px;height:46px;padding:0;border:0;background:none}
+.ghs img{width:100%;height:100%;display:block}
+/* SDS viewer */
+.pdf{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.pdf canvas{display:block;border:1px solid var(--m0-line);border-radius:6px;background:#fff}
+.pdf .status{padding:40px 0;text-align:center;color:var(--m0-text-2);font-size:var(--m0-fs-sm)}
+.pdf a{color:var(--m0-accent)}
+
+.rv-sec{display:flex;align-items:baseline;gap:6px;font-size:13px;font-weight:600;margin:20px 0 8px}
+.rv-sec:first-child{margin-top:4px}
+.rv-sec small{font-weight:400;color:var(--m0-text-2)}
+.rv-to{display:flex;gap:10px;font-size:var(--m0-fs-sm);padding:4px 0}
+.rv-to span{width:48px;color:var(--m0-text-2);flex:0 0 auto}
+.rv-to b{font-weight:500;overflow-wrap:anywhere}
+.rv-lbl{display:block;font-size:12px;font-weight:500;color:var(--m0-text-2);margin:12px 0 4px}
+.rv-msg{height:auto;padding:10px 12px;line-height:1.5;resize:vertical;font-family:var(--m0-font-sans)}
+.rv-files{list-style:none;margin:0;padding:0;border:1px solid var(--m0-line);border-radius:12px}
+.rv-files li{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--m0-line);font-size:var(--m0-fs-sm)}
+.rv-files li:last-child{border-bottom:0}
+.rv-files i{font-size:18px;color:var(--m0-text-2);flex:0 0 auto}
+.rv-files span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rv-files li.open{cursor:pointer}
+.rv-files li.open:active{background:var(--m0-surface-2)}
+.rv-files .rep{color:var(--m0-error)}
+.rv-files .go{margin-left:auto;font-size:16px}
+.rv-send{min-height:var(--m0-btn-h);font-size:1.0625rem}
+
+.nav-row{display:flex;align-items:center;gap:12px;width:100%;padding:12px;margin-bottom:22px;border:1px solid var(--m0-line);border-radius:12px;background:none;text-align:left}
+.nav-row span{flex:1}
+.nav-row small{display:block;font-size:12px;color:var(--m0-text-2)}
+.nav-row i{font-size:20px;color:var(--m0-text-2)}
+.lnk{background:none;border:0;padding:0;color:var(--m0-accent);font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
+[data-theme=dark] .lnk{color:var(--m0-hazard)}
+
+.csv{margin-top:12px;overflow-x:auto;border:1px solid var(--m0-line);border-radius:10px}
+.csv table{border-collapse:collapse;font-size:12px;min-width:100%}
+.csv th{position:sticky;top:0;background:var(--m0-surface-2);text-align:left;font-weight:600;white-space:nowrap}
+.csv th,.csv td{padding:7px 10px;border-bottom:1px solid var(--m0-line);vertical-align:top}
+.csv td{min-width:90px;max-width:220px}
+.csv tr:last-child td{border-bottom:0}
+
+.nav-group{border:1px solid var(--m0-line);border-radius:12px;margin-bottom:22px;overflow:hidden}
+.nav-group .nav-row{margin:0;border:0;border-radius:0}
+.nav-group .nav-row+.nav-row{border-top:1px solid var(--m0-line)}
+.search{display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;margin-bottom:12px;border:1px solid var(--m0-line);border-radius:10px;background:var(--m0-surface-2)}
+.search i{color:var(--m0-text-2);font-size:18px}
+.search input{flex:1;min-width:0;border:0;background:none;outline:none;font-size:16px;color:var(--m0-text)}
+.search.in-menu{margin:2px 2px 6px;height:40px}
+.site-opts{max-height:260px;overflow-y:auto}
+
+/* room dropdown */
+.menu{position:absolute;right:var(--m0-gutter);left:var(--m0-gutter);top:calc(100% + 4px);z-index:30;background:var(--m0-bg);color:var(--m0-text);border:1px solid var(--m0-line);border-radius:var(--m0-radius-lg);box-shadow:var(--m0-shadow-2);padding:6px;max-height:60vh;overflow:auto}
+.menu .opt{display:flex;align-items:center;gap:10px;width:100%;min-height:var(--m0-tap);padding:0 10px;border:0;border-radius:var(--m0-radius-md);background:none;text-align:left;font-size:var(--m0-fs-body)}
+.menu .opt:active,.menu .opt.cur{background:var(--m0-surface-2)}
+.menu .opt span{flex:1}
+.menu .opt small{color:var(--m0-text-2);font-size:var(--m0-fs-xs)}
+.menu .opt i{color:var(--m0-success);font-size:18px;width:18px;flex:0 0 18px;visibility:hidden}
+.menu .opt.cur i{visibility:visible}
+.menu .opt small{font-variant-numeric:tabular-nums}
+.menu .new-loc i{visibility:visible;color:var(--m0-text-2)}
+.menu-new{display:flex;gap:6px;padding:6px 4px 2px;border-top:1px solid var(--m0-line);margin-top:4px}
+.menu-new .field{margin:0;height:var(--m0-tap)}
+.menu-new .btn{flex:0 0 var(--m0-tap);padding:0;font-size:18px}
+
+.ctx{position:relative}
+.ctx .menu{left:0;right:0}
+#siteMenu{top:50px}
+.menu .new-loc{border-top:1px solid var(--m0-line);border-radius:0 0 var(--m0-radius-md) var(--m0-radius-md);margin-top:4px;color:var(--m0-text);font-weight:500}
+.menu .new-loc i{color:var(--m0-text-2)}
+
+/* account sheet */
+.who{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.avatar{width:48px;height:48px;border-radius:50%;background:var(--m0-primary);color:var(--m0-on-primary);display:grid;place-items:center;font-weight:600;font-size:18px;flex:0 0 48px}
+[data-theme=dark] .avatar{background:var(--m0-hazard);color:var(--m0-on-hazard)}
+.who b{display:block;font-weight:600;overflow-wrap:anywhere}
+.who span{font-size:var(--m0-fs-xs);color:var(--m0-text-2)}
+.set-lbl{font-size:var(--m0-fs-sm);font-weight:500;margin-bottom:8px}
+.locs{border:1px solid var(--m0-line);border-radius:12px;overflow:hidden;max-height:252px;overflow-y:auto}
+.loc-item{display:flex;align-items:center;border-bottom:1px solid var(--m0-line);padding-right:12px}
+.loc-item:last-child{border-bottom:0}
+.loc-item.cur{background:var(--m0-surface-2)}
+.loc{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:1;min-width:0;padding:10px 12px;border:0;background:none;text-align:left}
+.loc b{display:block;font-weight:500;font-size:15px}
+.loc small{display:block;font-size:12px;color:var(--m0-text-2);margin-top:1px}
+.loc i{color:var(--m0-text-2);font-size:18px}
+.loc-item.cur .loc i{color:var(--m0-success)}
+.loc-empty{padding:14px 12px;font-size:var(--m0-fs-sm);color:var(--m0-text-2)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:var(--m0-radius-md);background:var(--m0-surface-2);margin-bottom:22px}
+.seg button{min-height:40px;border:0;border-radius:8px;background:none;font-size:var(--m0-fs-sm);font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px}
+.seg button[aria-pressed=true]{background:var(--m0-bg);box-shadow:var(--m0-shadow-1)}
+
+.toast button{background:none;border:0;color:inherit;font-weight:700;text-decoration:underline;min-height:var(--m0-tap);padding:0 4px}
+</style>
+</head>
+<body>
+<!-- demo sign-in: only remembers the email on this phone. Real sign-in comes later. -->
+<section class="signin" id="signin" hidden>
+  <div class="stripe" aria-hidden="true"></div>
+  <form class="signin-in" id="signinForm" novalidate>
+    <div class="brand">
+      <img class="badge-mark" src="logo-yellow.svg" alt="">
+      <h1>Welcome to Manifest0 AI</h1>
+      <p>Zero guesswork on hazardous waste.</p>
+    </div>
+    <label class="sr" for="me">Work email</label>
+    <input id="meName" class="field" type="text" autocomplete="name" placeholder="Your name">
+    <input id="meCompany" class="field" type="text" autocomplete="organization" placeholder="Company (optional)">
+    <input id="me" class="field" type="email" inputmode="email" autocomplete="email" placeholder="Work email">
+    <div class="err" id="signinErr" role="alert" hidden></div>
+    <button class="go-btn" type="submit">Continue <i class="ti ti-arrow-right"></i></button>
+    <div class="demo-note">Demo version: no password needed yet.</div>
+  </form>
+</section>
+
+<div class="wrap" id="app">
+  <header class="top">
+    <div class="bar">
+      <button class="mark" id="markBtn"><span class="logo"><img class="on-light" src="logo-navy.svg" alt=""><img class="on-dark" src="logo-yellow.svg" alt=""></span>Manifest0 AI</button>
+      <button class="avatar-btn" id="accountBtn" aria-label="Account and settings"><i class="ti ti-user"></i></button>
+    </div>
+    <div class="ctx">
+      <button class="site" id="siteRow" hidden aria-label="Locations"><i class="ti ti-map-pin"></i><span id="siteLine"></span><i class="ti ti-chevron-down chev-s"></i></button>
+      <div class="menu" id="siteMenu" hidden>
+        <div id="siteList"><div class="loc-empty">Loading…</div></div>
+        <button class="opt new-loc" id="siteNew"><i class="ti ti-plus"></i><span>New location</span></button>
+      </div>
+      <h1 id="pageTitle">Start a site walk</h1>
+      <button class="room-box" id="roomBtn" aria-haspopup="true" aria-expanded="false" hidden><span><i class="ti ti-door"></i><span id="roomTitle"></span></span><i class="ti ti-selector"></i></button>
+      <div class="menu" id="roomMenu" hidden>
+        <div id="roomList"></div>
+        <div class="menu-new"><input id="newRoom" class="field" type="text" autocomplete="off" placeholder="New room"><button class="btn dark" id="addRoom" aria-label="Add room"><i class="ti ti-plus"></i></button></div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- before the walk starts -->
+    <section id="setup">
+      <p class="intro">Snap each label room by room. Manifest0 AI builds the inventory, finds every SDS and emails the report to your client.</p>
+      <label class="lbl" for="site">Site name</label>
+      <input id="site" class="field" type="text" autocomplete="off" placeholder="Riverside Clinic">
+      <label class="lbl" for="room">First room</label>
+      <input id="room" class="field" type="text" autocomplete="off" placeholder="Janitor closet">
+      <label class="lbl" for="client">Client email</label>
+      <input id="client" class="field" type="email" inputmode="email" multiple placeholder="client@site.com">
+      <div class="hint">You get a copy. Separate several client addresses with commas.</div>
+      <div class="err" id="setupErr" role="alert" hidden></div>
+    </section>
+
+    <!-- during the walk -->
+    <section id="walk" hidden>
+      <div id="capture">
+        <button class="snap" id="snapBtn"><span class="dot"><i class="ti ti-camera"></i></span><span><b>Snap a label</b><span>One photo per label. For a packed box, the box and one item.</span></span></button>
+        <div class="tray" id="tray" hidden>
+          <div class="thumbs" id="thumbs"></div>
+          <div class="go"><button class="clear" id="clearTray">Clear all</button><button class="btn dark" id="readBtn"><i class="ti ti-send"></i> <span id="readText">Read photos</span></button></div>
+        </div>
+      </div>
+      <!-- No "capture" attribute: the phone asks Take Photo or Photo Library. -->
+      <input class="sr" type="file" id="photoCam" accept="image/*" multiple>
+      <!-- while Manifest0 AI works: the logo fills up with the real progress; below, what is happening -->
+      <div class="status" id="status" role="status" hidden>
+        <svg class="m0-loader" viewBox="0 0 60 60" aria-hidden="true">
+          <defs><clipPath id="ldDiamond"><rect x="12" y="12" width="36" height="36" rx="4" transform="rotate(45 30 30)"/></clipPath></defs>
+          <rect width="60" height="60" rx="13" fill="#041D3E"/>
+          <rect x="12" y="12" width="36" height="36" rx="4" transform="rotate(45 30 30)" fill="#FFFFFF" opacity=".12"/>
+          <g clip-path="url(#ldDiamond)"><rect class="ld-fill" x="0" y="0" width="60" height="60" fill="#F3BF2B" style="transform:translateY(56px)"/></g>
+          <ellipse cx="30" cy="30" rx="7.5" ry="10" fill="none" stroke="#041D3E" stroke-opacity=".18" stroke-width="4.5"/>
+          <ellipse class="ld-zero" cx="30" cy="30" rx="7.5" ry="10" fill="none" stroke="#041D3E" stroke-width="4.5" stroke-linecap="round" pathLength="100" style="stroke-dashoffset:100"/>
+        </svg>
+        <div style="flex:1;min-width:0"><b class="st-title" id="statusText"></b><ul class="feed" id="feed"></ul></div>
+      </div>
+      <div class="banner" id="banner" hidden></div>
+      <div id="rows"></div>
+    </section>
+  </main>
+</div>
+
+<div class="sticky"><div class="in"><button class="primary" id="mainBtn">Start walk</button></div></div>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+  <div class="sheet-head"><h2 id="sheetTitle"></h2><button class="close" id="sheetClose" aria-label="Close"><i class="ti ti-x"></i></button></div>
+  <div id="sheetBody"></div>
+</div>
+<div class="toast" id="toast" role="status"><span id="toastMsg"></span><button id="toastAct" hidden></button></div>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s), root=document.documentElement;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const plural=(n,w)=>`${n} ${w}${n===1?'':'s'}`;
+const store={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+const RE=/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]{2,}$/;
+const emails=v=>v.split(/[,;\s]+/).map(s=>s.trim()).filter(Boolean);
+
+/* ---------- toast ---------- */
+let tt;function toast(msg,act,fn){$('#toastMsg').textContent=msg;const a=$('#toastAct');
+ if(act){a.hidden=false;a.textContent=act;a.onclick=()=>{fn();hideT()}}else a.hidden=true;
+ $('#toast').classList.add('show');clearTimeout(tt);tt=setTimeout(hideT,act?5000:2800)}
+function hideT(){$('#toast').classList.remove('show')}
+
+/* ---------- theme: light, dark, or follow the phone (system) ---------- */
+const sysDark=matchMedia('(prefers-color-scheme: dark)');
+function applyTheme(){const pick=store.get('m0-theme')||'system',t=pick==='system'?(sysDark.matches?'dark':'light'):pick;
+ root.setAttribute('data-theme',t);document.querySelector('meta[name=theme-color]').content=t==='dark'?'#252C32':'#FFFFFF'}
+sysDark.addEventListener('change',applyTheme);applyTheme();
+$('#markBtn').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
+
+/* ---------- bottom sheet ---------- */
+let lastFocus=null,sheetFor=null,sheetGen=0;
+function openSheet(title,html,forId,mode){hideT();$('#sheet').className='sheet '+(mode||'dialog')+($('#sheet').classList.contains('show')?' show':'');$('#sheetClose').innerHTML=`<i class="ti ti-${mode==='full'?'arrow-left':'x'}"></i>`;$('#sheetClose').setAttribute('aria-label',mode==='full'?'Back':'Close');$('#sheetClose').onclick=closeSheet;if($('#sheet').hidden)lastFocus=document.activeElement;sheetFor=forId||null;sheetGen++;
+ $('#sheetTitle').textContent=title;$('#sheetBody').innerHTML=html;
+ const sc=$('#scrim'),sh=$('#sheet');sc.hidden=false;sh.hidden=false;document.body.classList.add('lock');
+ requestAnimationFrame(()=>{sc.classList.add('show');sh.classList.add('show')})}
+function closeSheet(){const sc=$('#scrim'),sh=$('#sheet');sc.classList.remove('show');sh.classList.remove('show');
+ document.body.classList.remove('lock');sheetFor=null;const gen=sheetGen;
+ setTimeout(()=>{if(gen!==sheetGen)return;sc.hidden=true;sh.hidden=true;$('#sheetBody').innerHTML=''},250);
+ if(lastFocus&&lastFocus.focus)lastFocus.focus()}
+$('#sheetClose').onclick=closeSheet;$('#scrim').onclick=closeSheet;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet').hidden)closeSheet()});
+
+/* ---------- state ---------- */
+let visitId=new URLSearchParams(location.search).get('visit'), data=null, room=store.get('m0-room')||'';
+let tray=[], uid=0, uploading=0, pollTimer=null, lastRows='';
+const isOpen=()=>!data||data.visit.status==='open';
+const sdsPending=()=>data?data.products.filter(p=>p.sds_status==='pending').length:0;
+const busy=()=>uploading>0||!!data&&(data.photos.pending>0||sdsPending()>0||data.visit.status==='finishing');
+let me=store.get('m0-me')||'';
+
+async function api(path,opts){const r=await fetch(path,opts);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong ('+r.status+')');return j}
+async function load(){if(!visitId)return render();
+ try{data=await api('/api/visits/'+visitId)}catch(e){toast(e.message);return}
+ render();clearTimeout(pollTimer);if(busy())pollTimer=setTimeout(load,2500)}
+
+/* ---------- demo sign-in and account ---------- */
+let myName=store.get('m0-name')||'',myCompany=store.get('m0-company')||'';
+$('#meName').value=myName;$('#meCompany').value=myCompany;
+function signIn(){const v=$('#me').value.trim(),n=$('#meName').value.trim(),ok=RE.test(v);
+ const msg=!n?'Enter your name.':!ok?'Enter your work email.':'';
+ $('#meName').setAttribute('aria-invalid',!n);$('#me').setAttribute('aria-invalid',!ok);$('#signinErr').hidden=!msg;$('#signinErr').textContent=msg;
+ if(msg)return;me=v;myName=n;myCompany=$('#meCompany').value.trim();
+ store.set('m0-me',me);store.set('m0-name',myName);store.set('m0-company',myCompany);render()}
+$('#signinForm').addEventListener('submit',e=>{e.preventDefault();signIn()});
+$('#accountBtn').onclick=account;
+function account(){
+ const pick=store.get('m0-theme')||'system',seg=(v,icon,label)=>`<button data-theme-pick="${v}" aria-pressed="${pick===v}"><i class="ti ti-${icon}"></i>${label}</button>`;
+ openSheet('Account',`${me?`<div class="who"><div class="avatar">${esc((myName||me)[0].toUpperCase())}</div><div><b>${esc(myName||me)}</b><span>${esc(me)}</span></div></div>
+  <div class="set-lbl">Your details <span style="font-weight:400;color:var(--m0-text-2)">(shown on reports)</span></div>
+  <div class="grid2" style="margin-bottom:22px"><input id="accName" class="field" type="text" placeholder="Your name" value="${esc(myName)}" style="margin:0"><input id="accCompany" class="field" type="text" placeholder="Company" value="${esc(myCompany)}" style="margin:0"></div>`:''}
+  ${me?`<div class="nav-group">
+   <button class="nav-row" id="openLocations"><i class="ti ti-map-pin"></i><span>Locations<small id="locCount">Walks you're working on</small></span><i class="ti ti-chevron-right"></i></button>
+   <button class="nav-row" id="openReports"><i class="ti ti-file-text"></i><span>Reports<small id="repCount">Everything you've sent</small></span><i class="ti ti-chevron-right"></i></button>
+  </div>`:''}
+  <div class="set-lbl">Appearance</div>
+  <div class="seg">${seg('light','sun','Light')}${seg('dark','moon','Dark')}${seg('system','device-mobile','Auto')}</div>
+  ${me?`<button class="btn wide" id="signOut"><i class="ti ti-logout"></i> Sign out</button>`:''}`);
+ document.querySelectorAll('[data-theme-pick]').forEach(b=>b.onclick=()=>{store.set('m0-theme',b.dataset.themePick);applyTheme();
+  document.querySelectorAll('[data-theme-pick]').forEach(x=>x.setAttribute('aria-pressed',x===b))});
+ if(!me)return;
+ $('#accName').onchange=e=>{const v=e.target.value.trim();if(!v){e.target.value=myName;return}myName=v;store.set('m0-name',v);render();toast('Saved')};
+ $('#accCompany').onchange=e=>{myCompany=e.target.value.trim();store.set('m0-company',myCompany);toast('Saved')};
+ $('#signOut').onclick=()=>{closeSheet();me='';store.set('m0-me','');$('#me').value='';newWalk()};
+ $('#openLocations').onclick=locationsPage;
+ $('#openReports').onclick=reportsPage;
+ myVisits().then(list=>{if(!list||!$('#locCount'))return;const open=list.filter(inProgress).length,sent=list.length-open;
+  $('#locCount').textContent=open?plural(open,'walk')+' in progress':'No walks in progress';$('#repCount').textContent=sent?plural(sent,'report')+' sent':'Nothing sent yet'})}
+const inProgress=v=>v.status!=='done';
+/* Tapping the site name: a dropdown of your locations (switch, or start a new one). Deleting stays in Account. */
+async function toggleSites(show){const m=$('#siteMenu');show=show??m.hidden;m.hidden=!show;$('#siteRow').setAttribute('aria-expanded',show);
+ if(!show)return;toggleRooms(false);
+ let list=await myVisits();
+ if(!list){$('#siteList').innerHTML='<div class="loc-empty">Your locations didn&#39;t load.</div>';return}
+ list=list.filter(inProgress);
+ const opts=q=>{const hits=list.filter(v=>!q||(v.site_name||'').toLowerCase().includes(q.trim().toLowerCase()));
+  return hits.length?hits.map(v=>`<button class="opt${v.id===visitId?' cur':''}" data-site="${v.id}"><span>${esc(v.site_name||'Unnamed site')}</span><small>${plural(v.products,'product')}</small><i class="ti ti-check"></i></button>`).join(''):'<div class="loc-empty">No location matches.</div>'};
+ $('#siteList').innerHTML=(list.length>5?'<div class="search in-menu"><i class="ti ti-search"></i><input id="siteSearch" type="search" placeholder="Search locations" autocomplete="off"></div>':'')+'<div id="siteOpts" class="site-opts">'+opts('')+'</div>';
+ if($('#siteSearch')){$('#siteSearch').oninput=e=>{$('#siteOpts').innerHTML=opts(e.target.value)};$('#siteSearch').onclick=e=>e.stopPropagation();setTimeout(()=>$('#siteSearch').focus(),50)}}
+$('#siteRow').onclick=e=>{e.stopPropagation();toggleSites()};
+$('#siteList').addEventListener('click',e=>{const b=e.target.closest('[data-site]');if(!b)return;toggleSites(false);openVisit(b.dataset.site)});
+$('#siteNew').onclick=()=>{toggleSites(false);newWalk()};
+
+const myVisits=async()=>{try{return (await api('/api/visits?email='+encodeURIComponent(me))).visits}catch(e){return null}};
+const dateShort=d=>new Date(d.replace(' ','T')+'Z').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+/* A full-page list with a search box on top (Locations and Reports). */
+async function listPage({title,top='',filter,match,row,empty,none,wire}){
+ openSheet(title,`<div class="search"><i class="ti ti-search"></i><input id="lpSearch" type="search" placeholder="Search" autocomplete="off"></div>${top}
+  <div class="locs" id="lpList"><div class="loc-empty">Loading…</div></div>`,null,'full');
+ $('#sheetClose').onclick=account;
+ const all=await myVisits();const box=$('#lpList');if(!box)return;
+ if(!all){box.innerHTML='<div class="loc-empty">This list didn&#39;t load.</div>';return}
+ const list=all.filter(filter);
+ const show=q=>{q=q.trim().toLowerCase();const hits=list.filter(v=>!q||match(v).toLowerCase().includes(q));
+  box.innerHTML=hits.length?hits.map(row).join(''):`<div class="loc-empty">${list.length?none:empty}</div>`;wire(box,list)};
+ $('#lpSearch').addEventListener('input',e=>show(e.target.value));show('')}
+/* Locations: walks still in progress. Tap to continue, trash to delete, or start a new one. */
+function locationsPage(){
+ listPage({title:'Locations',top:'<button class="btn wide" id="newLoc" style="margin:0 0 12px"><i class="ti ti-plus"></i> New location</button>',
+  filter:inProgress,match:v=>v.site_name||'',empty:'No walks in progress.',none:'No location matches.',
+  row:v=>`<div class="loc-item${v.id===visitId?' cur':''}"><button class="loc" data-visit="${v.id}"><span><b>${esc(v.site_name||'Unnamed site')}</b>
+   <small>${plural(v.products,'product')} · ${dateShort(v.created_at)}</small></span>${v.id===visitId?'<i class="ti ti-check"></i>':''}</button>
+   <button class="del" data-del-visit="${v.id}" aria-label="Delete ${esc(v.site_name||'site')}"><i class="ti ti-trash"></i></button></div>`,
+  wire:(box,list)=>{box.querySelectorAll('[data-visit]').forEach(b=>b.onclick=()=>openVisit(b.dataset.visit));
+   box.querySelectorAll('[data-del-visit]').forEach(b=>b.onclick=()=>confirmDeleteLocation(list.find(v=>v.id===b.dataset.delVisit)))}});
+ $('#newLoc').onclick=()=>{closeSheet();newWalk()}}
+/* Reports: every walk you've sent. Tap for the PDF; the spreadsheet icon opens the spreadsheet. Search by site or client. */
+function reportsPage(){
+ const site=v=>v.site_name||'site',to=v=>JSON.parse(v.recipients||'[]').slice(1).join(', ');
+ listPage({title:'Reports',filter:v=>v.status==='done',match:v=>`${v.site_name||''} ${to(v)}`,
+  empty:'No reports yet. They show up here after you send one.',none:'No report matches.',
+  row:v=>`<div class="loc-item"><button class="loc" data-rep="${v.id}"><span><b>${esc(v.site_name||'Unnamed site')}</b>
+   <small>${dateShort(v.created_at)} · ${plural(v.products,'product')}${to(v)?' · '+esc(to(v)):''}</small></span><i class="ti ti-file-type-pdf"></i></button>
+   <button class="del" data-csv="${v.id}" aria-label="Spreadsheet"><i class="ti ti-file-spreadsheet"></i></button></div>`,
+  wire:(box,list)=>{const v=id=>list.find(x=>x.id===id);
+   box.querySelectorAll('[data-rep]').forEach(b=>b.onclick=()=>viewPdf({url:`/api/visits/${b.dataset.rep}/report.pdf`,title:site(v(b.dataset.rep)),name:`Inventory report - ${site(v(b.dataset.rep))}.pdf`,back:reportsPage}));
+   box.querySelectorAll('[data-csv]').forEach(b=>b.onclick=()=>viewCsv({url:`/api/visits/${b.dataset.csv}/inventory.csv`,title:site(v(b.dataset.csv)),name:`Inventory - ${site(v(b.dataset.csv))}.csv`,back:reportsPage}))}})}
+
+/* Deleting a site asks first; afterwards you're back in the account menu. */
+function confirmDeleteLocation(v){
+ openSheet('Delete this location?',`<p style="font-size:15px"><b>${esc(v.site_name||'Unnamed site')}</b> and its ${plural(v.products,'product')} will be removed from your locations.</p>
+  <div class="grid2" style="margin-top:18px"><button class="btn" id="locNo">Cancel</button><button class="btn danger" id="locYes"><i class="ti ti-trash"></i> Yes, delete</button></div>`);
+ $('#locNo').onclick=locationsPage;
+ $('#locYes').onclick=async()=>{
+  try{await api(`/api/visits/${v.id}?email=${encodeURIComponent(me)}`,{method:'DELETE'})}catch(e){toast(e.message);return}
+  if(v.id===visitId)newWalk();
+  toast('Deleted '+(v.site_name||'location'));locationsPage()}}
+async function openVisit(id){
+ closeSheet();if(id===visitId)return;
+ clearTimeout(pollTimer);tray.forEach(t=>URL.revokeObjectURL(t.url));tray=[];renderTray();
+ visitId=id;data=null;lastRows='';room='';history.replaceState(null,'','?visit='+id);
+ await load();
+ if(data){let saved=[];try{saved=JSON.parse(store.get(roomsKey())||'[]')}catch(e){}
+  setRoom(saved.at(-1)||(data.rooms||[]).at(-1)||data.products.at(-1)?.room||'')}
+ window.scrollTo({top:0})}
+
+
+/* ---------- start the walk ---------- */
+async function startWalk(){
+ const site=$('#site').value.trim(),clients=emails($('#client').value),r=$('#room').value.trim();
+ $('#site').setAttribute('aria-invalid',!site);
+ const bad=!site?'Enter the site name.':!clients.length?'Enter the client email.':clients.find(e=>!RE.test(e))?'Check this address: '+clients.find(e=>!RE.test(e)):!r?'Enter the first room.':'';
+ $('#client').setAttribute('aria-invalid',!clients.length||clients.some(e=>!RE.test(e)));$('#room').setAttribute('aria-invalid',!r);
+ $('#setupErr').hidden=!bad;$('#setupErr').textContent=bad;if(bad)return;
+ try{const res=await api('/api/visits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recipients:[me,...clients],siteName:site,preparedBy:myName,company:myCompany})});
+  visitId=res.visitId;history.replaceState(null,'','?visit='+visitId);setRoom(r);await load()}
+ catch(e){toast(e.message)}}
+
+/* ---------- rooms: dropdown of every room in this walk, plus "new room" ---------- */
+const roomsKey=()=>'m0-rooms-'+visitId;
+function allRooms(){let saved=[];try{saved=JSON.parse(store.get(roomsKey())||'[]')}catch(e){}
+ return [...new Set([...saved,...(data&&data.rooms||[]),...(data?data.products.map(p=>p.room):[]),room].filter(Boolean))]}
+function setRoom(r){room=r;store.set('m0-room',r);if(visitId)store.set(roomsKey(),JSON.stringify(allRooms()));renderTray();render()}
+function toggleRooms(show){const m=$('#roomMenu');show=show??m.hidden;m.hidden=!show;$('#roomBtn').setAttribute('aria-expanded',show);
+ if(!show)return;$('#siteMenu').hidden=true;
+ $('#roomList').innerHTML=allRooms().map(r=>{const n=data?data.products.filter(p=>p.room===r).length:0;
+  return `<button class="opt${r===room?' cur':''}" data-room="${esc(r)}"><span>${esc(r)}</span><small>${plural(n,'product')}</small><i class="ti ti-check"></i></button>`}).join('');
+ $('#newRoom').value=''}
+$('#roomBtn').onclick=e=>{e.stopPropagation();toggleRooms()};
+$('#roomList').addEventListener('click',e=>{const b=e.target.closest('[data-room]');if(!b)return;toggleRooms(false);if(b.dataset.room!==room){setRoom(b.dataset.room);toast('Now in '+room)}});
+const addRoom=()=>{const v=$('#newRoom').value.trim();if(!v){$('#newRoom').focus();return}toggleRooms(false);setRoom(v);toast('Now in '+v)};
+$('#addRoom').onclick=addRoom;$('#newRoom').addEventListener('keydown',e=>{if(e.key==='Enter')addRoom()});
+document.addEventListener('click',e=>{if(!$('#roomMenu').hidden&&!e.target.closest('#roomMenu'))toggleRooms(false);if(!$('#siteMenu').hidden&&!e.target.closest('#siteMenu'))toggleSites(false)});
+
+/* ---------- photos ---------- */
+$('#snapBtn').onclick=()=>$('#photoCam').click();
+$('#photoCam').addEventListener('change',e=>{addPhotos(e.target.files);e.target.value=''});
+/* Limits per batch: 20 photos, each up to 20 MB as taken (they're shrunk to ~1 MB before upload). */
+const MAX_PHOTOS=20,MAX_MB=20;
+function addPhotos(list){let big=0,over=0;
+ for(const f of list){if(!(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name)))continue;
+  if(f.size>MAX_MB*1048576){big++;continue}
+  if(tray.length>=MAX_PHOTOS){over++;continue}
+  tray.push({id:++uid,file:f,url:URL.createObjectURL(f)})}
+ renderTray();
+ if(over)toast(`Up to ${MAX_PHOTOS} photos at a time. Read these first, then add the rest.`);
+ else if(big)toast(`${plural(big,'photo')} skipped: over ${MAX_MB} MB.`)}
+function renderTray(){$('#tray').hidden=!tray.length;
+ $('#thumbs').innerHTML=tray.map(t=>`<div class="th"><img src="${t.url}" alt=""><button data-id="${t.id}" aria-label="Remove photo"><i class="ti ti-x"></i></button></div>`).join('');
+ $("#readText").textContent=`Read ${plural(tray.length,"photo")}`}
+$('#clearTray').onclick=()=>{const old=tray;tray=[];renderTray();
+ toast(plural(old.length,'photo')+' cleared','Undo',()=>{tray=old.concat(tray);renderTray()})};
+$('#thumbs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const t=tray.find(x=>x.id===+b.dataset.id);
+ tray=tray.filter(x=>x!==t);URL.revokeObjectURL(t.url);renderTray()});
+
+/* Phone photos are 3-5 MB; shrink to 2000px JPEG before upload (labels stay readable). */
+async function shrink(file){
+ if(file.size<1.5e6)return file;
+ try{const bmp=await createImageBitmap(file),s=Math.min(1,2000/Math.max(bmp.width,bmp.height));
+  const c=document.createElement('canvas');c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);
+  c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.85));
+  return blob?new File([blob],file.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):file}
+ catch(e){return file}}
+
+$('#readBtn').onclick=async()=>{
+ const batch=tray,r=room;tray=[];renderTray();uploading+=batch.length;render();
+ try{for(let i=0;i<batch.length;i+=12){   // the server takes up to 12 photos per upload
+   const fd=new FormData();fd.append('room',r);
+   for(const t of batch.slice(i,i+12))fd.append('images',await shrink(t.file));
+   await api(`/api/visits/${visitId}/photos`,{method:'POST',body:fd})}
+  batch.forEach(t=>URL.revokeObjectURL(t.url))}
+ catch(e){tray=batch.concat(tray);renderTray();toast(e.message)}
+ uploading-=batch.length;await load()};
+
+/* ---------- product edits ---------- */
+async function patch(id,body,msg){
+ try{await api('/api/products/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(msg)toast(msg);await load();return true}
+ catch(e){toast(e.message);return false}}
+
+/* ---------- send report ---------- */
+/* Send to client: a review page with the email draft (editable) and the attachments, which open to look at.
+   Nothing goes out until Send. Edits to the subject and message survive opening an attachment. */
+let review=null;
+async function sendReport(){
+ openSheet('Review and send','<div class="pdf"><div class="status"><i class="ti ti-loader-2 spin"></i> Preparing the report…</div></div>',null,'full');
+ try{review=await api(`/api/visits/${visitId}/report`)}catch(e){toast(e.message);closeSheet();return}
+ showReview()}
+function showReview(){
+ const r=review,ic={report:'file-type-pdf',spreadsheet:'file-spreadsheet',sds:'file-type-pdf'};
+ openSheet('Review and send',`
+  <div class="rv-sec">Email</div>
+  <div class="rv-to"><span>To</span><b>${esc(r.to.join(', ')||r.cc)}</b></div>
+  ${r.to.length?`<div class="rv-to"><span>Copy</span><b>${esc(r.cc)}</b></div>`:''}
+  <label class="rv-lbl" for="rvSubject">Subject</label>
+  <input id="rvSubject" class="field" type="text" value="${esc(r.subject)}">
+  <label class="rv-lbl" for="rvMsg">Message</label>
+  <textarea id="rvMsg" class="field rv-msg" rows="7">${esc(r.message)}</textarea>
+  <div class="rv-sec">Attachments <small>tap one to view it</small></div>
+  <ul class="rv-files">${r.attachments.map((f,i)=>`<li${f.url?` class="open" data-att="${i}"`:''}><i class="ti ti-${ic[f.kind]}${f.kind==='report'?' rep':''}"></i><span>${esc(f.name)}</span>${f.url?'<i class="ti ti-chevron-right go"></i>':''}</li>`).join('')}</ul>
+  ${r.missingSds.length?`<div class="banner warn"><i class="ti ti-alert-triangle"></i> No SDS found for ${esc(r.missingSds.join(', '))}. The report says so.</div>`:''}
+  ${busy()?'<div class="banner warn">Manifest0 AI is still working. The email goes out as soon as it finishes.</div>':''}
+  <div class="ctr-note" style="margin:14px 0 16px">After sending, the inventory can't be changed.</div>
+  <button class="btn dark wide rv-send" id="rvSend"><i class="ti ti-send"></i> Send to client</button>`,null,'full');
+ const keep=()=>{r.subject=$('#rvSubject').value;r.message=$('#rvMsg').value};
+ document.querySelectorAll('[data-att]').forEach(li=>li.onclick=()=>{keep();const f=r.attachments[+li.dataset.att];
+  (f.kind==='spreadsheet'?viewCsv:viewPdf)({url:f.url,title:f.kind==='report'?'Inventory report':f.kind==='spreadsheet'?'Inventory spreadsheet':f.name.replace(/\.pdf$/,''),name:f.name,back:showReview})});
+ $('#rvSend').onclick=async()=>{keep();$('#rvSend').disabled=true;
+  try{await api(`/api/visits/${visitId}/finish`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:r.subject,message:r.message})});
+   closeSheet();newWalk();toast('Report sent. Find it under Reports.')}
+  catch(e){toast(e.message);$('#rvSend').disabled=false}}}
+
+function newWalk(){
+ clearTimeout(pollTimer);visitId=null;data=null;lastRows='';tray.forEach(t=>URL.revokeObjectURL(t.url));tray=[];
+ history.replaceState(null,'',location.pathname);$('#site').value='';$('#room').value='';$('#client').value='';
+ renderTray();render();window.scrollTo({top:0})}
+
+/* ---------- GHS hazard pictograms (the red diamonds on labels) ---------- */
+const GHS=[
+ {code:'GHS01',name:'Explosive',match:/explo|bomb/},
+ {code:'GHS03',name:'Oxidizer',match:/oxidi|over circle/},
+ {code:'GHS02',name:'Flammable',match:/flam/},
+ {code:'GHS04',name:'Gas under pressure',match:/cylinder|gas under|compressed/},
+ {code:'GHS05',name:'Corrosive',match:/corros/},
+ {code:'GHS06',name:'Toxic',match:/skull|toxic/},
+ {code:'GHS07',name:'Harmful or irritant',match:/exclam|harmful|irritant/},
+ {code:'GHS08',name:'Serious health hazard',match:/health/},
+ {code:'GHS09',name:'Harmful to the environment',match:/environ|fish|tree|aquatic/}];
+/* Muse names the symbols in words ("flame", "exclamation mark"); turn them into GHS codes, once each. */
+function ghsOf(p){const seen=new Set();for(const t of JSON.parse(p.ghs_pictograms||'[]')){const g=GHS.find(g=>g.match.test(String(t).toLowerCase()));if(g)seen.add(g)}
+ return GHS.filter(g=>seen.has(g))}
+/* Official GHS pictograms (UNECE, public domain, via Wikimedia Commons) in /ghs/. */
+const ghsBadge=g=>`<button class="ghs" type="button" title="${g.name} (${g.code})" aria-label="${g.name}" data-ghs="${g.name}"><img src="/ghs/${g.code}.svg" alt="" onerror="retryImg(this)"></button>`;
+/* A picture that fails to load (e.g. a blip in the connection) tries again, up to 3 times. */
+window.retryImg=img=>{const n=+(img.dataset.tries||0);if(n>=3)return;img.dataset.tries=n+1;setTimeout(()=>{img.src=img.src.split('?')[0]+'?r='+(n+1)},1000*(n+1))};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-ghs]');if(b)toast(b.dataset.ghs)});
+
+/* ---------- rendering ---------- */
+const TYPES=['drum','pail','jug','bottle','can','aerosol','box','bag','tote','cylinder','tube','other'];
+const MATERIALS=['metal','plastic','fiber','wood','glass','unknown'];
+const LABEL={fiber:'Fiber / cardboard',tote:'Tote (IBC)',can:'Can',other:'Other',unknown:'Not sure'};
+const label=x=>LABEL[x]||x[0].toUpperCase()+x.slice(1);
+/* shadcn-style select: a button that opens a small list with a check on the current choice */
+const select=(key,list,cur)=>`<div class="sel-wrap" data-key="${key}"><button type="button" class="sel" aria-haspopup="listbox"><span>${label(cur)}</span><i class="ti ti-selector"></i></button>
+ <div class="sel-pop" role="listbox" hidden>${list.map(x=>`<button type="button" role="option" data-val="${x}" aria-selected="${x===cur}">${label(x)}<i class="ti ti-check"></i></button>`).join('')}</div></div>`;
+const stepper=(id,val,min)=>`<div class="step"><button type="button" data-d="-1" aria-label="Less">−</button><input id="${id}" type="number" inputmode="numeric" min="${min}" value="${val}"><button type="button" data-d="1" aria-label="More">+</button></div>`;
+document.addEventListener('click',e=>{if(!e.target.closest('.sel-wrap'))document.querySelectorAll('.sel-pop').forEach(x=>x.hidden=true)});
+const hot=p=>!!p.hazard_class||p.signal_word==='DANGER';
+const contents=p=>p.inner_type||p.inner_count!=null?`${p.inner_count!=null?'~'+p.inner_count+' ':''}${p.inner_type?p.inner_type+'s':'items'}`:'';
+const shortSize=s=>s?s.split(/[(\n]/)[0].trim():'';
+const summary=p=>[`${p.quantity} ${p.container_type==='other'?'container':p.container_type}${p.quantity>1?'s':''}`,contents(p),!contents(p)&&shortSize(p.container_size)].filter(Boolean).join(' · ');
+const hazardPics=p=>ghsOf(p).map(g=>`<img class="mini-ghs" src="/ghs/${g.code}.svg" alt="${g.name}" title="${g.name}" onerror="retryImg(this)">`).join('');
+const sdsChip=p=>({pending:'<span class="tag-s wait">SDS…</span>',found:'<span class="tag-s ok"><i class="ti ti-check"></i>SDS</span>',page_only:'<span class="tag-s wait">SDS page</span>',not_found:'<span class="tag-s bad">No SDS</span>'}[p.sds_status]||'');
+
+/* Progress for the logo, 0-100 and never going backwards. Uploading 0-10, reading labels 10-50 (one Muse call, so it
+   eases forward with time), SDS 50-95 (by how many are done), sending 95-100. */
+let job=null;
+function progress(reading,sds,sending){
+ const now=Date.now();
+ if(!job){let t0=now;   // started here (upload) = now; page reopened mid-job = when the current work began
+  if(!uploading){const last=(data?data.log:[]).filter(l=>/: reading \d+ photo|Finishing/.test(l)).map(l=>Date.parse(l.slice(0,24))).at(-1);if(last&&now-last<15*60000)t0=last}
+  job={t0,pct:0,sdsMax:0}}
+ const ease=(since,ms)=>1-Math.exp(-(now-since)/ms);
+ let p;
+ if(uploading)p=10*ease(job.t0,6000);
+ else if(reading){job.readT=job.readT||now;p=10+40*ease(job.readT,25000)}
+ else if(sds){if(sds!==job.lastSds){job.lastSds=sds;job.sdsT=now}job.sdsMax=Math.max(job.sdsMax,sds);
+  const per=45/job.sdsMax;p=50+per*(job.sdsMax-sds)+per*.8*ease(job.sdsT,25000)}
+ else if(sending){job.sendT=job.sendT||now;p=95+4*ease(job.sendT,5000)}
+ job.pct=Math.max(job.pct,Math.min(99,Math.round(p)));return job.pct}
+/* The agent's log lines, in plain words for the status card. */
+function friendly(line){const t=line.replace(/^\S+ /,''),m=(re)=>t.match(re);let x;
+ if(x=m(/: reading (\d+) photo/))return `Reading ${plural(+x[1],'label photo')}`;
+ if(x=m(/: (\d+) new product\(s\), (\d+) already known/))return +x[1]?`Added ${plural(+x[1],'product')} to the list`:'No new products in these photos';
+ if(x=m(/^Searching web for SDS: (.+)/))return `Searching the web for the ${x[1]} SDS`;
+ if(x=m(/^SDS from library: (.+)/))return `${x[1]}: SDS already saved, reused it`;
+ if(x=m(/^SDS found: (.+)/))return `${x[1]}: SDS found and saved`;
+ if(x=m(/^SDS page only: (.+)/))return `${x[1]}: found the SDS page`;
+ if(x=m(/^SDS not found: (.+)/))return `${x[1]}: no SDS found`;
+ if(m(/^Finishing/))return 'Getting the report ready';
+ return null}
+
+/* Draws the status card. The logo fills by area (a diamond's area grows fastest in the middle), so 50% looks half full. */
+function showStatus(title,pct,steps,done){
+ const st=$('#status');st.hidden=false;st.classList.toggle('done',done);st.classList.remove('fade');
+ $('#statusText').textContent=title;
+ const f=pct/100,h=f<=.5?Math.sqrt(f/2):1-Math.sqrt((1-f)/2);   // share of the diamond's height that holds f of its area
+ $('.ld-fill').style.transform=`translateY(${55.5-51*h}px)`;$('.ld-zero').style.strokeDashoffset=100-pct;
+ $('#feed').innerHTML=steps.map(([t,ok])=>`<li><i class="ti ti-${ok?'check':'point'}"></i>${esc(t)}</li>`).join('')}
+
+function render(){
+ const v=data&&data.visit,open=isOpen(),walking=!!visitId,signedIn=!!me;
+ $('#signin').hidden=signedIn;document.body.classList.toggle('out',!signedIn);$('#setup').hidden=!signedIn||walking;$('#walk').hidden=!signedIn||!walking;
+ const roomPicker=signedIn&&walking&&open;
+ $('#siteRow').hidden=!walking;$('#siteLine').textContent=(v&&v.site_name)||'';
+ $('#pageTitle').hidden=roomPicker;$('#roomBtn').hidden=!roomPicker;$('#capture').hidden=!walking||!open;
+ $('#pageTitle').textContent=!walking?'Start a site walk':v&&v.status==='done'?'Report sent':v&&v.status==='failed'?'Report not sent':'Sending report';
+ $('#roomTitle').textContent=room||'Choose a room';
+ $('#accountBtn').innerHTML=me?esc((myName||me)[0].toUpperCase()):'<i class="ti ti-user"></i>';
+
+ // status card: stage title, real progress (0-100%) and the steps the agent took since this job began
+ const reading=data?data.photos.pending:0,sds=sdsPending(),sending=v&&v.status==='finishing';
+ const st=uploading?'Uploading photos':reading?'Reading the labels':sds?'Finding SDS sheets':sending?'Sending the report':'';
+ const steps=()=>[...new Set((data?data.log:[]).filter(l=>Date.parse(l.slice(0,24))>=job.t0-1000).map(friendly).filter(Boolean))];
+ if(st){const pct=progress(reading,sds,sending),list=steps().slice(-3);
+  showStatus(st+(sds&&job.sdsMax>1?` · ${job.sdsMax-sds+1} of ${job.sdsMax}`:''),pct,list.map((t,i)=>[t,i<list.length-1]),false)}
+ else if(job&&!job.done){   // just finished: fill to 100%, say what happened, then fade away
+  job.done=true;const added=steps().map(t=>t.match(/^Added (\d+)/)).filter(Boolean).reduce((n,m)=>n+ +m[1],0);
+  showStatus(added?`Done · ${plural(added,'product')} added`:'Done · nothing new found',100,steps().slice(-3).map(t=>[t,true]),true);
+  const j=job;setTimeout(()=>{$('#status').classList.add('fade');setTimeout(()=>{if(job===j){job=null;$('#status').hidden=true;$('#status').classList.remove('fade')}},500)},2500)}
+ else if(!job)$('#status').hidden=true;
+
+ // result banner: only when sending failed
+ const bn=$('#banner');bn.hidden=true;
+if(v&&v.status==='failed'){bn.hidden=false;bn.className='banner bad';bn.textContent="The email didn't go out: "+v.error}
+
+ // inventory
+ const products=data?data.products:[];
+ const snap=JSON.stringify(products)+open;
+ if(walking&&snap!==lastRows){lastRows=snap;let html='',r=null;const rooms=new Set(products.map(p=>p.room)).size;
+  products.forEach((p,i)=>{if(rooms>1&&p.room!==r){r=p.room;html+=`<div class="room">${esc(r)}</div>`}
+   html+=`<div class="item"><button class="row" data-id="${p.id}"><span class="ic num${hot(p)?' hot':''}">${i+1}</span>
+    <span class="t"><b>${esc(p.product_name)}</b><span>${esc(summary(p))}</span></span>
+    <span class="chips"><span class="chip-row">${sdsChip(p)}</span>${ghsOf(p).length?`<span class="chip-row">${hazardPics(p)}</span>`:''}</span></button></div>`});
+  $('#rows').innerHTML=html||(open?'<div class="empty">Snap the first label to start the list.</div>':'')}
+ update()}
+
+/* bottom button: Start walk → Send to client → Start new walk */
+let mode='start';
+function update(){const b=$('#mainBtn');
+ if(!me){mode='signin';b.textContent='Continue';b.setAttribute('aria-disabled',false);return}
+ if(!visitId){mode='start';b.textContent='Start walk';b.setAttribute('aria-disabled',false);return}
+ if(isOpen()){mode='send';b.textContent='Send to client';b.setAttribute('aria-disabled',!(data&&data.products.length));return}
+ mode='new';b.textContent='Start new walk';b.setAttribute('aria-disabled',false)}
+$('#mainBtn').onclick=()=>{if(mode==='signin')signIn();else if(mode==='start')startWalk();else if(mode==='send')data&&data.products.length?sendReport():toast('Snap a label first');else newWalk()};
+
+/* ---------- product sheet ---------- */
+$('#rows').addEventListener('click',e=>{
+ const b=e.target.closest('.row');if(b)detail(b.dataset.id)});
+function detail(id){
+ const p=data.products.find(x=>x.id===id);if(!p)return;const open=isOpen();
+ const ing=JSON.parse(p.ingredients),photos=JSON.parse(p.photo_keys),pics=ghsOf(p);
+ const m=p.manifest||{},packed=p.inner_type||p.container_type==='box'||p.container_type==='drum';
+ const sdsLink=p.sds_key?`/api/files/${p.sds_key}`:p.sds_page_url||p.sds_url;
+ const sdsText={pending:'Searching…',found:p.sds_source==='library'?'Found (saved from an earlier visit)':'Found',page_only:'Manufacturer page only',not_found:'Not found'}[p.sds_status];
+ openSheet(p.product_name,`
+  ${photos.length?`<div class="photos">${photos.map(k=>`<a href="/api/files/${encodeURI(k)}" target="_blank"><img src="/api/files/${encodeURI(k)}" alt="Label photo" loading="lazy"></a>`).join('')}</div>`:''}
+  <dl>
+   ${p.manufacturer?`<dt>Maker</dt><dd>${esc(p.manufacturer)}</dd>`:''}
+   <dt>Ingredients</dt><dd>${ing.length?ing.map(esc).join('<br>'):'Not on label'}</dd>
+   <dt>Hazard class</dt><dd>${p.hazard_class?esc(p.hazard_class):'Not clear from label'}${p.un_number?' · '+esc(p.un_number):''}</dd>
+   ${p.signal_word&&p.signal_word!=='none'?`<dt>Signal word</dt><dd>${esc(p.signal_word)}</dd>`:''}
+   ${pics.length?`<dt>Hazards</dt><dd><div class="ghs-row">${pics.map(ghsBadge).join('')}</div></dd>`:''}
+   <dt>Room</dt><dd>${esc(p.room)}</dd>
+   <dt>SDS</dt><dd>${esc(sdsText)}</dd>
+  </dl>
+  ${open?`<div class="ctr">
+   <div class="ctr-h">Containers</div>
+   <div class="ctr-row lead">
+    <div class="f"><label for="eQty">Count</label>${stepper('eQty',p.quantity,1)}</div>
+    <div class="f"><label>Type</label>${select('containerType',TYPES,p.container_type)}</div>
+   </div>
+   <div class="ctr-row${packed?' trail':''}">
+    <div class="f"><label>Material</label>${select('containerMaterial',MATERIALS,p.container_material)}</div>
+    ${packed?`<div class="f"><label for="eInner">Items inside</label>${stepper('eInner',p.inner_count??0,0)}</div>`:''}
+   </div>
+   <div class="ctr-foot"><span>${esc([shortSize(p.container_size),contents(p)&&'contains '+contents(p)].filter(Boolean).join(' · ')||'Size not on label')}${p.count_edited?' · edited':''}</span>
+    <span class="pill" title="EPA manifest, Item 10">${m.code?`EPA ${p.quantity} ${esc(m.code)}`:'Lab pack'}</span></div>
+   ${m.code?'':'<div class="ctr-note">Small container: the manifest code comes from the box or drum it gets packed in.</div>'}
+   ${p.count_note?`<div class="ctr-note">${esc(p.count_note)}</div>`:''}
+  </div>`:`<dl style="margin-top:-8px"><dt>Containers</dt><dd>${esc(summary(p))}</dd>
+   <dt>EPA manifest</dt><dd>${m.code?esc(p.quantity+' '+m.code):'<small>'+esc(m.hint)+'</small>'}</dd></dl>`}
+  <div class="stack">
+   ${p.sds_key?`<button class="btn wide" id="dSds"><i class="ti ti-file-text"></i> View SDS</button>`:sdsLink?`<a class="btn wide" href="${esc(sdsLink)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Open SDS page</a>`:''}
+   ${open?`<div class="grid2"><button class="btn danger" id="dRm"><i class="ti ti-trash"></i> Delete</button><button class="btn dark" id="dSave" disabled><i class="ti ti-device-floppy"></i> Save changes</button></div>`:''}
+  </div>`,id,'full');
+ if($('#dSds'))$('#dSds').onclick=()=>viewSds(p);
+ if(!open)return;
+ // edits are kept as a draft; nothing is saved until "Save changes"
+ const orig={quantity:p.quantity,containerType:p.container_type,containerMaterial:p.container_material,innerCount:p.inner_count??0},draft={...orig};
+ const changed=()=>Object.keys(draft).filter(k=>draft[k]!==orig[k]);
+ const dirty=()=>{$('#dSave').disabled=!changed().length};
+ document.querySelectorAll('#sheetBody .sel-wrap').forEach(w=>{const pop=w.querySelector('.sel-pop');
+  w.querySelector('.sel').onclick=e=>{e.stopPropagation();const show=pop.hidden;document.querySelectorAll('.sel-pop').forEach(x=>x.hidden=true);pop.hidden=!show};
+  pop.onclick=e=>{const o=e.target.closest('[data-val]');if(!o)return;pop.hidden=true;draft[w.dataset.key]=o.dataset.val;
+   w.querySelector('.sel span').textContent=label(o.dataset.val);pop.querySelectorAll('[data-val]').forEach(x=>x.setAttribute('aria-selected',x===o));dirty()}});
+ [['eQty','quantity',1],['eInner','innerCount',0]].forEach(([el,key,min])=>{const inp=$('#'+el);if(!inp)return;
+  const set=v=>{draft[key]=Math.max(min,parseInt(v)||min);dirty()};
+  inp.addEventListener('input',()=>set(inp.value));
+  inp.parentElement.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{inp.value=Math.max(min,(parseInt(inp.value)||0)+ +b.dataset.d);set(inp.value)})});
+ $('#dSave').onclick=async()=>{const body={};for(const k of changed())body[k]=draft[k];$('#dSave').disabled=true;
+  if(await patch(id,body,'Saved'))refreshSheet(id);else dirty()};
+ $('#dRm').onclick=()=>confirmDelete(p)}
+/* ---------- SDS viewer: shows the PDF inside the app (PDF.js), with a Download button ---------- */
+const PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+let pdfjsReady;
+const loadPdfjs=()=>pdfjsReady||=new Promise((ok,fail)=>{const sc=document.createElement('script');sc.src=PDFJS+'pdf.min.js';
+ sc.onload=()=>{pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS+'pdf.worker.min.js';ok(pdfjsLib)};sc.onerror=fail;document.head.appendChild(sc)});
+/* Read-only PDF viewer (SDS sheets, the report). The back arrow returns to where you came from. */
+async function viewPdf({url,title,name,back}){
+ const dl=url+(url.includes('?')?'&':'?')+'download=1&name='+encodeURIComponent(name);
+ openSheet(title,`<a class="btn dark wide" href="${dl}" download="${esc(name)}"><i class="ti ti-download"></i> Download PDF</a>
+  <div class="pdf" id="pdfPages"><div class="status"><i class="ti ti-loader-2 spin"></i> Opening the PDF…</div></div>`,null,'full');
+ $('#sheetClose').onclick=back;
+ try{const lib=await loadPdfjs(),doc=await lib.getDocument(url).promise,box=$('#pdfPages');if(!box)return;box.innerHTML='';
+  const w=box.clientWidth,dpr=Math.min(2,window.devicePixelRatio||1);
+  for(let i=1;i<=doc.numPages;i++){if(!$('#pdfPages'))return;   // viewer was closed
+   const page=await doc.getPage(i),v=page.getViewport({scale:1}),vp=page.getViewport({scale:w/v.width*dpr});
+   const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;c.style.width=w+'px';box.appendChild(c);
+   await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise}}
+ catch(e){const box=$('#pdfPages');if(box)box.innerHTML=`<div class="status">Couldn't show the PDF here. <a href="${url}" target="_blank" rel="noopener">Open it in a new tab</a>.</div>`}}
+/* Spreadsheet viewer: the CSV as a table you can scroll sideways, with a Download button. */
+async function viewCsv({url,title,name,back}){
+ const dl=url+(url.includes('?')?'&':'?')+'download=1&name='+encodeURIComponent(name);
+ openSheet(title,`<a class="btn dark wide" href="${dl}" download="${esc(name)}"><i class="ti ti-download"></i> Download spreadsheet</a>
+  <div class="csv" id="csvBox"><div class="pdf"><div class="status"><i class="ti ti-loader-2 spin"></i> Opening…</div></div></div>`,null,'full');
+ $('#sheetClose').onclick=back;
+ try{const rows=parseCsv((await (await fetch(url)).text()).replace(/^\s+/,''));const box=$('#csvBox');if(!box)return;
+  box.innerHTML=`<table><thead><tr>${rows[0].map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${
+   rows.slice(1).map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`}
+ catch(e){const box=$('#csvBox');if(box)box.innerHTML='<div class="pdf"><div class="status">Couldn&#39;t open the spreadsheet.</div></div>'}}
+/* Minimal CSV reader: quoted fields, doubled quotes, commas and line breaks inside quotes. */
+function parseCsv(t){const rows=[];let row=[],f='',q=false;
+ for(let i=0;i<t.length;i++){const ch=t[i];
+  if(q){if(ch==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=ch}
+  else if(ch==='"')q=true;else if(ch===','){row.push(f);f=''}
+  else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;row.push(f);rows.push(row);row=[];f=''}else f+=ch}
+ if(f||row.length){row.push(f);rows.push(row)}return rows}
+const viewSds=p=>viewPdf({url:`/api/files/${p.sds_key}`,title:'SDS · '+p.product_name,name:`SDS - ${p.product_name}.pdf`,back:()=>detail(p.id)});
+
+/* Deleting a product always asks first. */
+function confirmDelete(p){
+ openSheet('Delete this item?',`<p style="font-size:15px"><b>${esc(p.product_name)}</b> (${esc(summary(p))}) will be taken off the inventory and left out of the report.</p>
+  <div class="grid2" style="margin-top:18px"><button class="btn" id="delNo">Cancel</button><button class="btn danger" id="delYes"><i class="ti ti-trash"></i> Yes, delete</button></div>`);
+ $('#delNo').onclick=closeSheet;
+ $('#delYes').onclick=async()=>{closeSheet();if(await patch(p.id,{removed:true}))toast('Deleted '+p.product_name,'Undo',()=>patch(p.id,{removed:false},'Restored'))}}
+function refreshSheet(id){if(sheetFor!==id)return;const y=$('#sheet').scrollTop;detail(id);$('#sheet').scrollTop=y}
+
+load();
+})();
+</script>
+</body>
+</html>

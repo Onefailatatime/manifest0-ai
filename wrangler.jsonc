@@ -3,5 +3,43 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+
+  // The app owns the domain. manifest0ai.com/join* is a route on the manifest0-beta Worker (the beta landing page);
+  // routes run before custom domains, so /join goes there and everything else comes here.
+  "routes": [
+    { "pattern": "manifest0ai.com", "custom_domain": true },
+    { "pattern": "www.manifest0ai.com", "custom_domain": true }
+  ],
+
+  // Static files (the upload page) served from ./public
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+
+  // D1 = Cloudflare's SQL database (SQLite). Tables: see migrations/
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "manifest0-db",
+      "database_id": "b56bcbf4-26e7-45ff-b3b8-64d2d7f800a3",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // R2 = file storage. Label photos and SDS PDFs live here.
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "manifest0-files" }],
+
+  // The Agent. Each site visit gets its own VisitAgent instance (a Durable Object).
+  "durable_objects": {
+    "bindings": [{ "name": "VisitAgent", "class_name": "VisitAgent" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["VisitAgent"] }],
+
+  "vars": {
+    "MUSE_MODEL": "muse-spark-1.3",
+    // Sender address on our domain, verified in Resend.
+    "EMAIL_FROM": "Manifest0 AI <reports@manifest0ai.com>"
+  }
+  // Secrets (not in this file): MODEL_API_KEY, RESEND_API_KEY.
+  // Locally in .dev.vars; in production in the dashboard (Settings → Variables and Secrets).
+  // Without RESEND_API_KEY, emails aren't sent; the report is saved to R2 instead (see the log).
 }
