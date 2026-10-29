@@ -11,7 +11,7 @@ A technician starts a **site visit**, then uploads photos room by room (as many 
 then taps **Finish**. One `VisitAgent` (Agents SDK) lives for the whole visit and remembers everything in it.
 
 ```
-Browser (public/index.html)
+Browser (public/app/index.html, the app at app.manifest0ai.com and /app/)
    │  POST /api/visits                 start a visit (emails, site name)
    │  POST /api/visits/:id/photos      a batch of photos + room name   (repeat)
    │  POST /api/visits/:id/finish      done → email
@@ -93,3 +93,18 @@ Free plan: 3,000 emails/month, 100/day, up to 40 MB of attachments per email.
 
 Until the domain is verified, Resend only allows sending from `onboarding@resend.dev` to the email address
 the Resend account was created with, which is fine for testing.
+
+## Landing page (manifest0ai.com/)
+
+`manifest0ai.com/` is the beta landing page (`public/index.html`, `landing.css`, `landing.js`). The app is at
+`app.manifest0ai.com` (its home page serves `public/app/`) and also at `/app/` on any host.
+- One screen: logo, headline, one line, a real app screenshot (`public/img/app-screen.webp` with a
+  `.png` fallback, the live app's Inventory screen, same as the postcard) and the apply form. Desktop adds three short points. Dark only (B7), whatever
+  the device setting. The app itself still follows the device (light B1, dark B7).
+- Apply form asks for work email and company only: `POST /api/landing/apply` saves to `beta_applications`
+  (migration `0007_landing.sql`). No email is sent yet.
+- Traffic source: card QR `https://manifest0ai.com/?src=card`, email links `?src=email`. The tag is saved for 30 days
+  on the device, sent with the form, and each tagged visit is counted (`landing_events`). `/join` and `/beta` redirect
+  to `/` and keep the query. Old report links (`/?visit=ID`) forward to `/app/?visit=ID`.
+- Admin: `/admin/` with the `ADMIN_KEY` secret (12+ chars) shows applications, From card and From email counts and a CSV.
+  Set it once: `npx wrangler secret put ADMIN_KEY`.

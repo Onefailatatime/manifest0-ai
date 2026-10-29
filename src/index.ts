@@ -3,6 +3,7 @@ import { CONTAINER_MATERIALS, manifestCode, type ContainerMaterial } from "./man
 import { CONTAINER_TYPES, type ContainerType } from "./muse";
 import { defaultEmail, inventoryCsv, type ProductRow, type VisitRow } from "./visit-agent";
 import { reportPdf } from "./report-pdf";
+import { handleLanding } from "./landing";
 
 /** Byte-order mark: makes Excel open the CSV as UTF-8 (accents, symbols). */
 const BOM = String.fromCharCode(0xfeff);
@@ -20,6 +21,17 @@ export default {
     const url = new URL(request.url);
     const { method } = request;
     const { pathname } = url;
+
+    // app.manifest0ai.com is the app: its home page is the app page (public/app/). manifest0ai.com/ is the landing page.
+    if (url.hostname.startsWith("app.") && (pathname === "/" || pathname === "/index.html"))
+      return env.ASSETS.fetch(new Request(new URL("/app/" + url.search, url), request));
+
+    // Landing page API (beta apply form, ?src=card and ?src=email tracking, admin counts). The page is public/index.html.
+    const landing = await handleLanding(request, env, pathname);
+    if (landing) return landing;
+
+    // Old links: /join and /beta now land on the home page, keeping the query (?src=card).
+    if (/^\/(join|beta)(\/.*)?$/.test(pathname)) return Response.redirect(`${url.origin}/${url.search}`, 301);
 
     if (method === "POST" && pathname === "/api/visits") return createVisit(request, env, url.origin);
     if (method === "GET" && pathname === "/api/visits") return listVisits(env, url.searchParams.get("email") ?? "");

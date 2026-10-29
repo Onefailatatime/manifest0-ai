@@ -1,0 +1,57 @@
+// Landing page API: apply form, ?src=card tracking, admin behind ADMIN_KEY, old links.
+import { SELF } from "cloudflare:test";
+import { describe, expect, it } from "vitest";
+
+const url = (path: string) => `https://app.test${path}`;
+const post = (path: string, body: unknown) =>
+  SELF.fetch(url(path), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+const admin = (key = "test-admin-key-123") => SELF.fetch(url("/api/landing/admin"), { headers: { "x-admin-key": key } });
+// The page sends only work email, company and the source tag.
+const application = { company: "Example Waste Co", email: "Sam@Example.com", source: "card" };
+
+describe("landing page", () => {
+  it("saves an application once and counts it as from the card", async () => {
+    expect(await (await post("/api/landing/apply", application)).json()).toEqual({ ok: true });
+    expect(await (await post("/api/landing/apply", application)).json()).toEqual({ ok: true, duplicate: true });
+    await post("/api/landing/visit", { source: "card" });
+    const out = (await (await admin()).json()) as any;
+    expect(out.totals).toMatchObject({ applications: 1, from_card_applications: 1, from_card_visits: 1 });
+    expect(out.applications[0].email).toBe("sam@example.com");
+  });
+
+  it("records ?src=email applications", async () => {
+    await post("/api/landing/apply", { company: "Mail Co", email: "pat@example.com", source: "email" });
+    const out = (await (await admin()).json()) as any;
+    expect(out.totals).toMatchObject({ applications: 1, from_card_applications: 0, from_email_applications: 1 });
+    expect(out.applications[0]).toMatchObject({ source: "email", from_email: true, name: null, state: null });
+  });
+
+  it("rejects a bad application with field errors", async () => {
+    const res = await post("/api/landing/apply", { email: "nope", company: "" });
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as any).errors).toMatchObject({ email: expect.any(String), company: expect.any(String) });
+    const bad = await post("/api/landing/apply", { ...application, state: "XX" });
+    expect(((await bad.json()) as any).errors).toHaveProperty("state");
+  });
+
+  it("keeps admin behind ADMIN_KEY", async () => {
+    expect((await admin("wrong-key-wrong-key")).status).toBe(401);
+    expect((await SELF.fetch(url("/api/landing/admin.csv"))).status).toBe(401);
+  });
+
+  it("serves the app on app.manifest0ai.com/ and the landing page on manifest0ai.com/", async () => {
+    const app = await (await SELF.fetch("https://app.manifest0ai.com/?visit=abc")).text();
+    expect(app).toContain('id="signinForm"');
+    const home = await (await SELF.fetch("https://manifest0ai.com/")).text();
+    expect(home).toContain('id="apply-form"');
+    expect(home).not.toContain('id="signinForm"');
+  });
+
+  it("redirects /join and /beta to the home page, keeping the query", async () => {
+    for (const path of ["/join?src=card", "/beta?src=card"]) {
+      const res = await SELF.fetch(url(path), { redirect: "manual" });
+      expect(res.status).toBe(301);
+      expect(res.headers.get("Location")).toBe("https://app.test/?src=card");
+    }
+  });
+});

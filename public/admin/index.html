@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Manifest0 AI | Beta admin</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/tokens.css">
+<link rel="stylesheet" href="/landing.css">
+<style>
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:var(--m0-space-3);margin-bottom:var(--m0-space-4)}
+.kpi{background:var(--m0-surface);border:1px solid var(--m0-border);border-radius:var(--m0-radius-md);padding:var(--m0-space-3)}
+.kpi b{display:block;font-size:1.75rem;line-height:1.2}
+.kpi span{font-size:var(--m0-fs-xs);color:var(--m0-text-2)}
+.kpi.card-kpi b{color:var(--m0-accent)}
+table{width:100%;border-collapse:collapse;font-size:var(--m0-fs-sm)}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--m0-border)}
+th{color:var(--m0-text-2);font-weight:600}
+.app{border-bottom:1px solid var(--m0-border);padding:var(--m0-space-3) 0}
+.app:last-child{border-bottom:0}
+.app h3{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.badge{font-size:var(--m0-fs-xs);font-weight:700;background:var(--m0-accent);color:var(--m0-on-accent);border-radius:var(--m0-radius-pill);padding:2px 8px}
+.app p{margin:2px 0;color:var(--m0-text-2);font-size:var(--m0-fs-sm);overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="/" aria-label="Manifest0 AI home"><img src="/logo/lockup-white-on-dark.svg" alt="Manifest0 AI" width="161" height="36"></a>
+    <button class="btn-ghost" id="lock" hidden>Lock</button>
+  </header>
+  <main>
+    <section class="card pad-lg" id="login">
+      <h2>Beta admin</h2>
+      <div class="alert error" id="err" role="alert"></div>
+      <form id="keyForm"><div class="field"><label for="key">Admin key</label><input id="key" type="password" autocomplete="current-password"></div>
+      <button class="btn" type="submit">Open</button></form>
+    </section>
+    <section id="data" hidden>
+      <div class="kpis">
+        <div class="kpi"><b id="kApps">0</b><span>Applications</span></div>
+        <div class="kpi card-kpi"><b id="kCard">0</b><span>From card (applied)</span></div>
+        <div class="kpi"><b id="kCardVisits">0</b><span>Card scans (visits)</span></div>
+        <div class="kpi card-kpi"><b id="kEmail">0</b><span>From email (applied)</span></div>
+      </div>
+      <div class="card pad-lg"><p class="eyebrow">Where people came from</p>
+        <table><thead><tr><th>Source</th><th>Visits</th><th>App taps</th><th>Applied</th></tr></thead><tbody id="srcRows"></tbody></table></div>
+      <div class="card pad-lg"><p class="eyebrow">Applicants</p><div id="apps"></div>
+        <button class="btn-secondary" id="csv" style="margin-top:12px">Download CSV</button></div>
+    </section>
+  </main>
+</div>
+<script src="/admin/admin.js" defer></script>
+</body>
+</html>

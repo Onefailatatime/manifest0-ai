@@ -9,6 +9,7 @@ interface __BaseEnv_Env {
 	EMAIL_FROM: "Manifest Zero <onboarding@resend.dev>";
 	MODEL_API_KEY: string;
 	RESEND_API_KEY: string;
+	ADMIN_KEY: string;
 	VisitAgent: DurableObjectNamespace<import("./src/index").VisitAgent>;
 }
 declare namespace Cloudflare {
@@ -23,7 +24,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "MUSE_MODEL" | "EMAIL_FROM" | "MODEL_API_KEY" | "RESEND_API_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "MUSE_MODEL" | "EMAIL_FROM" | "MODEL_API_KEY" | "RESEND_API_KEY" | "ADMIN_KEY">> {}
 }
 declare module "*.txt" {
 	const value: string;

@@ -240,7 +240,7 @@ export class VisitAgent extends Agent<Env, VisitState> {
         });
       }
 
-      const visitUrl = `${this.state.appUrl}/?visit=${this.visitId}`;
+      const visitUrl = `${this.state.appUrl}/app/?visit=${this.visitId}`;
       const to = recipientsOf(visit);
       const draft = defaultEmail(visit, products);
       const subject = visit.email_subject || draft.subject;
