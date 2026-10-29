@@ -255,6 +255,13 @@ body.out #app,body.out .sticky{display:none}
 .lnk{background:none;border:0;padding:0;color:var(--m0-accent);font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
 [data-theme=dark] .lnk{color:var(--m0-hazard)}
 
+.csv{margin-top:12px;overflow-x:auto;border:1px solid var(--m0-line);border-radius:10px}
+.csv table{border-collapse:collapse;font-size:12px;min-width:100%}
+.csv th{position:sticky;top:0;background:var(--m0-surface-2);text-align:left;font-weight:600;white-space:nowrap}
+.csv th,.csv td{padding:7px 10px;border-bottom:1px solid var(--m0-line);vertical-align:top}
+.csv td{min-width:90px;max-width:220px}
+.csv tr:last-child td{border-bottom:0}
+
 /* room dropdown */
 .menu{position:absolute;right:var(--m0-gutter);left:var(--m0-gutter);top:calc(100% + 4px);z-index:30;background:var(--m0-bg);color:var(--m0-text);border:1px solid var(--m0-line);border-radius:var(--m0-radius-lg);box-shadow:var(--m0-shadow-2);padding:6px;max-height:60vh;overflow:auto}
 .menu .opt{display:flex;align-items:center;gap:10px;width:100%;min-height:var(--m0-tap);padding:0 10px;border:0;border-radius:var(--m0-radius-md);background:none;text-align:left;font-size:var(--m0-fs-body)}
@@ -601,7 +608,7 @@ function showReview(){
   <input id="rvSubject" class="field" type="text" value="${esc(r.subject)}">
   <label class="rv-lbl" for="rvMsg">Message</label>
   <textarea id="rvMsg" class="field rv-msg" rows="7">${esc(r.message)}</textarea>
-  <div class="rv-sec">Attachments <small>tap a PDF to view it</small></div>
+  <div class="rv-sec">Attachments <small>tap one to view it</small></div>
   <ul class="rv-files">${r.attachments.map((f,i)=>`<li${f.url?` class="open" data-att="${i}"`:''}><i class="ti ti-${ic[f.kind]}${f.kind==='report'?' rep':''}"></i><span>${esc(f.name)}</span>${f.url?'<i class="ti ti-chevron-right go"></i>':''}</li>`).join('')}</ul>
   ${r.missingSds.length?`<div class="banner warn"><i class="ti ti-alert-triangle"></i> No SDS found for ${esc(r.missingSds.join(', '))}. The report says so.</div>`:''}
   ${busy()?'<div class="banner warn">Manifest0 AI is still working. The email goes out as soon as it finishes.</div>':''}
@@ -609,7 +616,7 @@ function showReview(){
   <button class="btn dark wide rv-send" id="rvSend"><i class="ti ti-send"></i> Send to client</button>`,null,'full');
  const keep=()=>{r.subject=$('#rvSubject').value;r.message=$('#rvMsg').value};
  document.querySelectorAll('[data-att]').forEach(li=>li.onclick=()=>{keep();const f=r.attachments[+li.dataset.att];
-  viewPdf({url:f.url,title:f.kind==='report'?'Inventory report':f.name.replace(/\.pdf$/,''),name:f.name,back:showReview})});
+  (f.kind==='spreadsheet'?viewCsv:viewPdf)({url:f.url,title:f.kind==='report'?'Inventory report':f.kind==='spreadsheet'?'Inventory spreadsheet':f.name.replace(/\.pdf$/,''),name:f.name,back:showReview})});
  $('#rvSend').onclick=async()=>{keep();$('#rvSend').disabled=true;
   try{await api(`/api/visits/${visitId}/finish`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:r.subject,message:r.message})});
    closeSheet();toast('Report is on its way');await load()}
@@ -818,6 +825,23 @@ async function viewPdf({url,title,name,back}){
    const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;c.style.width=w+'px';box.appendChild(c);
    await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise}}
  catch(e){const box=$('#pdfPages');if(box)box.innerHTML=`<div class="status">Couldn't show the PDF here. <a href="${url}" target="_blank" rel="noopener">Open it in a new tab</a>.</div>`}}
+/* Spreadsheet viewer: the CSV as a table you can scroll sideways, with a Download button. */
+async function viewCsv({url,title,name,back}){
+ const dl=url+(url.includes('?')?'&':'?')+'download=1&name='+encodeURIComponent(name);
+ openSheet(title,`<a class="btn dark wide" href="${dl}" download="${esc(name)}"><i class="ti ti-download"></i> Download spreadsheet</a>
+  <div class="csv" id="csvBox"><div class="pdf"><div class="status"><i class="ti ti-loader-2 spin"></i> Opening…</div></div></div>`,null,'full');
+ $('#sheetClose').onclick=back;
+ try{const rows=parseCsv((await (await fetch(url)).text()).replace(/^\s+/,''));const box=$('#csvBox');if(!box)return;
+  box.innerHTML=`<table><thead><tr>${rows[0].map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${
+   rows.slice(1).map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`}
+ catch(e){const box=$('#csvBox');if(box)box.innerHTML='<div class="pdf"><div class="status">Couldn&#39;t open the spreadsheet.</div></div>'}}
+/* Minimal CSV reader: quoted fields, doubled quotes, commas and line breaks inside quotes. */
+function parseCsv(t){const rows=[];let row=[],f='',q=false;
+ for(let i=0;i<t.length;i++){const ch=t[i];
+  if(q){if(ch==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=ch}
+  else if(ch==='"')q=true;else if(ch===','){row.push(f);f=''}
+  else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;row.push(f);rows.push(row);row=[];f=''}else f+=ch}
+ if(f||row.length){row.push(f);rows.push(row)}return rows}
 const viewSds=p=>viewPdf({url:`/api/files/${p.sds_key}`,title:'SDS · '+p.product_name,name:`SDS - ${p.product_name}.pdf`,back:()=>detail(p.id)});
 const viewReport=(back)=>viewPdf({url:`/api/visits/${visitId}/report.pdf`,title:'Inventory report',name:`Inventory report - ${(data&&data.visit.site_name)||'site'}.pdf`,back});
 

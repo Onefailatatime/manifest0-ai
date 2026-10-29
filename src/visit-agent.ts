@@ -4,6 +4,9 @@ import { manifestCode } from "./manifest";
 import { extractProducts, findSds, type KnownProduct } from "./muse";
 import { reportPdf } from "./report-pdf";
 
+/** Byte-order mark: makes Excel open the CSV as UTF-8 (accents, symbols). */
+const BOM = String.fromCharCode(0xfeff);
+
 // One VisitAgent per site visit, named by the visit id. It lives for the whole visit:
 // the technician adds photos room by room, and the agent remembers every product it has
 // already catalogued, so overlapping photos update a product instead of duplicating it.
@@ -220,7 +223,7 @@ export class VisitAgent extends Agent<Env, VisitState> {
       const site = safeFilename(visit.site_name ?? "site");
       const attachments: Attachment[] = [
         { content: Buffer.from(await reportPdf(visit, products)).toString("base64"), filename: `Inventory report - ${site}.pdf`, content_type: "application/pdf" },
-        { content: Buffer.from(inventoryCsv(products)).toString("base64"), filename: `Inventory - ${site}.csv`, content_type: "text/csv" },
+        { content: Buffer.from(BOM + inventoryCsv(products)).toString("base64"), filename: `Inventory - ${site}.csv`, content_type: "text/csv" },
       ];
       const attachedKeys = new Set<string>();
       let total = 0;

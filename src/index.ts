@@ -1,8 +1,11 @@
 import { getAgentByName } from "agents";
 import { CONTAINER_MATERIALS, manifestCode, type ContainerMaterial } from "./manifest";
 import { CONTAINER_TYPES, type ContainerType } from "./muse";
-import { defaultEmail, type ProductRow, type VisitRow } from "./visit-agent";
+import { defaultEmail, inventoryCsv, type ProductRow, type VisitRow } from "./visit-agent";
 import { reportPdf } from "./report-pdf";
+
+/** Byte-order mark: makes Excel open the CSV as UTF-8 (accents, symbols). */
+const BOM = String.fromCharCode(0xfeff);
 
 // Durable Object classes must be exported from the entry file.
 export { VisitAgent } from "./visit-agent";
@@ -21,7 +24,7 @@ export default {
     if (method === "POST" && pathname === "/api/visits") return createVisit(request, env, url.origin);
     if (method === "GET" && pathname === "/api/visits") return listVisits(env, url.searchParams.get("email") ?? "");
 
-    const visit = pathname.match(/^\/api\/visits\/([\w-]+)(\/photos|\/finish|\/report|\/report\.pdf)?$/);
+    const visit = pathname.match(/^\/api\/visits\/([\w-]+)(\/photos|\/finish|\/report|\/report\.pdf|\/inventory\.csv)?$/);
     if (visit) {
       const [, visitId, action] = visit;
       if (method === "GET" && !action) return getVisit(env, visitId);
@@ -30,6 +33,7 @@ export default {
       if (method === "POST" && action === "/finish") return finishVisit(request, env, visitId);
       if (method === "GET" && action === "/report") return reportPreview(env, visitId);
       if (method === "GET" && action === "/report.pdf") return reportFile(env, visitId, url.searchParams.has("download"));
+      if (method === "GET" && action === "/inventory.csv") return inventoryFile(env, visitId, url.searchParams.has("download"));
     }
 
     const product = pathname.match(/^\/api\/products\/([\w-]+)$/);
@@ -184,7 +188,7 @@ async function reportPreview(env: Env, visitId: string) {
     message: visit.email_message ?? draft.message,
     attachments: [
       { name: `Inventory report - ${site}.pdf`, kind: "report", url: `/api/visits/${visitId}/report.pdf` },
-      { name: `Inventory - ${site}.csv`, kind: "spreadsheet" },
+      { name: `Inventory - ${site}.csv`, kind: "spreadsheet", url: `/api/visits/${visitId}/inventory.csv` },
       ...[...sds].map(([key, name]) => ({ name: `SDS - ${name}.pdf`, kind: "sds", url: `/api/files/${key}` })),
     ],
     missingSds: products.filter((p) => !p.sds_key).map((p) => p.product_name),
@@ -199,6 +203,16 @@ async function reportFile(env: Env, visitId: string, download: boolean) {
   const pdf = await reportPdf(loaded.visit, loaded.products);
   return new Response(pdf.buffer as ArrayBuffer, {
     headers: { "Content-Type": "application/pdf", "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${name}"`, "Cache-Control": "no-store" },
+  });
+}
+
+/** The inventory spreadsheet, exactly as it will be attached. */
+async function inventoryFile(env: Env, visitId: string, download: boolean) {
+  const loaded = await loadReport(env, visitId);
+  if (!loaded) return error("Not found", 404);
+  const name = `Inventory - ${(loaded.visit.site_name ?? "site").replace(/[^\w\s.&()-]/g, "")}.csv`;
+  return new Response(BOM + inventoryCsv(loaded.products), {
+    headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${name}"`, "Cache-Control": "no-store" },
   });
 }
 
