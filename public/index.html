@@ -251,7 +251,10 @@ body.out #app,body.out .sticky{display:none}
 .rv-files .go{margin-left:auto;font-size:16px}
 .rv-send{min-height:var(--m0-btn-h);font-size:1.0625rem}
 
-.sent-line{margin-top:6px;font-size:var(--m0-fs-sm);color:var(--m0-text-2)}
+.nav-row{display:flex;align-items:center;gap:12px;width:100%;padding:12px;margin-bottom:22px;border:1px solid var(--m0-line);border-radius:12px;background:none;text-align:left}
+.nav-row span{flex:1}
+.nav-row small{display:block;font-size:12px;color:var(--m0-text-2)}
+.nav-row i{font-size:20px;color:var(--m0-text-2)}
 .lnk{background:none;border:0;padding:0;color:var(--m0-accent);font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
 [data-theme=dark] .lnk{color:var(--m0-hazard)}
 
@@ -462,9 +465,10 @@ function account(){
  openSheet('Account',`${me?`<div class="who"><div class="avatar">${esc((myName||me)[0].toUpperCase())}</div><div><b>${esc(myName||me)}</b><span>${esc(me)}</span></div></div>
   <div class="set-lbl">Your details <span style="font-weight:400;color:var(--m0-text-2)">(shown on reports)</span></div>
   <div class="grid2" style="margin-bottom:22px"><input id="accName" class="field" type="text" placeholder="Your name" value="${esc(myName)}" style="margin:0"><input id="accCompany" class="field" type="text" placeholder="Company" value="${esc(myCompany)}" style="margin:0"></div>`:''}
-  ${me?`<div class="set-lbl">Locations</div>
+  ${me?`<div class="set-lbl">Locations <span style="font-weight:400;color:var(--m0-text-2)">(in progress)</span></div>
   <div class="locs" id="locs"><div class="loc-empty">Loading…</div></div>
-  <button class="btn wide" id="newLoc" style="margin:8px 0 22px"><i class="ti ti-plus"></i> New location</button>`:''}
+  <button class="btn wide" id="newLoc" style="margin:8px 0 14px"><i class="ti ti-plus"></i> New location</button>
+  <button class="nav-row" id="openReports"><i class="ti ti-file-text"></i><span>Reports<small>Everything you've sent</small></span><i class="ti ti-chevron-right"></i></button>`:''}
   <div class="set-lbl">Appearance</div>
   <div class="seg">${seg('light','sun','Light')}${seg('dark','moon','Dark')}${seg('system','device-mobile','Auto')}</div>
   ${me?`<button class="btn wide" id="signOut"><i class="ti ti-logout"></i> Sign out</button>`:''}`);
@@ -475,22 +479,24 @@ function account(){
  $('#accCompany').onchange=e=>{myCompany=e.target.value.trim();store.set('m0-company',myCompany);toast('Saved')};
  $('#signOut').onclick=()=>{closeSheet();me='';store.set('m0-me','');$('#me').value='';newWalk()};
  $('#newLoc').onclick=()=>{closeSheet();newWalk()};
+ $('#openReports').onclick=reportsPage;
  loadLocations()}
+const inProgress=v=>v.status!=='done';
 /* Tapping the site name: a dropdown of your locations (switch, or start a new one). Deleting stays in Account. */
 async function toggleSites(show){const m=$('#siteMenu');show=show??m.hidden;m.hidden=!show;$('#siteRow').setAttribute('aria-expanded',show);
  if(!show)return;toggleRooms(false);
  let list;try{list=(await api('/api/visits?email='+encodeURIComponent(me))).visits}catch(e){list=null}
- $('#siteList').innerHTML=!list?'<div class="loc-empty">Your locations didn&#39;t load.</div>':list.map(v=>`<button class="opt${v.id===visitId?' cur':''}" data-site="${v.id}"><span>${esc(v.site_name||'Unnamed site')}</span><small>${plural(v.products,'product')}</small><i class="ti ti-check"></i></button>`).join('')}
+ $('#siteList').innerHTML=!list?'<div class="loc-empty">Your locations didn&#39;t load.</div>':list.filter(inProgress).map(v=>`<button class="opt${v.id===visitId?' cur':''}" data-site="${v.id}"><span>${esc(v.site_name||'Unnamed site')}</span><small>${plural(v.products,'product')}</small><i class="ti ti-check"></i></button>`).join('')}
 $('#siteRow').onclick=e=>{e.stopPropagation();toggleSites()};
 $('#siteList').addEventListener('click',e=>{const b=e.target.closest('[data-site]');if(!b)return;toggleSites(false);openVisit(b.dataset.site)});
 $('#siteNew').onclick=()=>{toggleSites(false);newWalk()};
 
 /* Locations = the sites you've walked, newest first. Tap one to go back to it. */
 async function loadLocations(){
- let list;try{list=(await api('/api/visits?email='+encodeURIComponent(me))).visits}catch(e){list=null}
+ let list;try{list=(await api('/api/visits?email='+encodeURIComponent(me))).visits.filter(inProgress)}catch(e){list=null}
  const box=$('#locs');if(!box)return;
  if(!list){box.innerHTML='<div class="loc-empty">Your locations didn&#39;t load.</div>';return}
- if(!list.length){box.innerHTML='<div class="loc-empty">No locations yet.</div>';return}
+ if(!list.length){box.innerHTML='<div class="loc-empty">No walks in progress.</div>';return}
  const when=d=>new Date(d.replace(' ','T')+'Z').toLocaleDateString(undefined,{month:'short',day:'numeric'});
  const st={open:'In progress',finishing:'Sending',done:'Sent',failed:'Not sent'};
  box.innerHTML=list.map(v=>`<div class="loc-item${v.id===visitId?' cur':''}"><button class="loc" data-visit="${v.id}"><span><b>${esc(v.site_name||'Unnamed site')}</b>
@@ -498,6 +504,23 @@ async function loadLocations(){
   <button class="del" data-del-visit="${v.id}" aria-label="Delete ${esc(v.site_name||'site')}"><i class="ti ti-trash"></i></button></div>`).join('');
  box.querySelectorAll('[data-visit]').forEach(b=>b.onclick=()=>openVisit(b.dataset.visit));
  box.querySelectorAll('[data-del-visit]').forEach(b=>b.onclick=()=>confirmDeleteLocation(list.find(v=>v.id===b.dataset.delVisit)))}
+/* Reports: every walk you've sent, newest first. Tap to read the PDF; the spreadsheet is one tap away. */
+async function reportsPage(){
+ openSheet('Reports','<div class="locs" id="reps"><div class="loc-empty">Loading…</div></div>',null,'full');
+ $('#sheetClose').onclick=account;
+ let list;try{list=(await api('/api/visits?email='+encodeURIComponent(me))).visits.filter(v=>v.status==='done')}catch(e){list=null}
+ const box=$('#reps');if(!box)return;
+ if(!list){box.innerHTML='<div class="loc-empty">Your reports didn&#39;t load.</div>';return}
+ if(!list.length){box.innerHTML='<div class="loc-empty">No reports yet. They show up here after you send one.</div>';return}
+ const when=d=>new Date(d.replace(' ','T')+'Z').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+ box.innerHTML=list.map(v=>{const to=JSON.parse(v.recipients||'[]').slice(1).join(', ');
+  return `<div class="loc-item"><button class="loc" data-rep="${v.id}"><span><b>${esc(v.site_name||'Unnamed site')}</b>
+   <small>${when(v.created_at)} · ${plural(v.products,'product')}${to?' · '+esc(to):''}</small></span><i class="ti ti-file-type-pdf"></i></button>
+   <button class="del" data-csv="${v.id}" aria-label="Spreadsheet"><i class="ti ti-file-spreadsheet"></i></button></div>`}).join('');
+ const site=id=>(list.find(v=>v.id===id).site_name||'site');
+ box.querySelectorAll('[data-rep]').forEach(b=>b.onclick=()=>viewPdf({url:`/api/visits/${b.dataset.rep}/report.pdf`,title:site(b.dataset.rep),name:`Inventory report - ${site(b.dataset.rep)}.pdf`,back:reportsPage}));
+ box.querySelectorAll('[data-csv]').forEach(b=>b.onclick=()=>viewCsv({url:`/api/visits/${b.dataset.csv}/inventory.csv`,title:site(b.dataset.csv),name:`Inventory - ${site(b.dataset.csv)}.csv`,back:reportsPage}))}
+
 /* Deleting a site asks first; afterwards you're back in the account menu. */
 function confirmDeleteLocation(v){
  openSheet('Delete this location?',`<p style="font-size:15px"><b>${esc(v.site_name||'Unnamed site')}</b> and its ${plural(v.products,'product')} will be removed from your locations.</p>
@@ -619,7 +642,7 @@ function showReview(){
   (f.kind==='spreadsheet'?viewCsv:viewPdf)({url:f.url,title:f.kind==='report'?'Inventory report':f.kind==='spreadsheet'?'Inventory spreadsheet':f.name.replace(/\.pdf$/,''),name:f.name,back:showReview})});
  $('#rvSend').onclick=async()=>{keep();$('#rvSend').disabled=true;
   try{await api(`/api/visits/${visitId}/finish`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:r.subject,message:r.message})});
-   closeSheet();toast('Report is on its way');await load()}
+   closeSheet();newWalk();toast('Report sent. Find it under Reports.')}
   catch(e){toast(e.message);$('#rvSend').disabled=false}}}
 
 function newWalk(){
@@ -706,7 +729,7 @@ function render(){
  const roomPicker=signedIn&&walking&&open;
  $('#siteRow').hidden=!walking;$('#siteLine').textContent=(v&&v.site_name)||'';
  $('#pageTitle').hidden=roomPicker;$('#roomBtn').hidden=!roomPicker;$('#capture').hidden=!walking||!open;
- $('#pageTitle').textContent=!walking?'Start a site walk':v&&v.status==='done'?(v.email_sent_at?'Report sent':'Report saved'):v&&v.status==='failed'?'Report not sent':'Sending report';
+ $('#pageTitle').textContent=!walking?'Start a site walk':v&&v.status==='done'?'Report sent':v&&v.status==='failed'?'Report not sent':'Sending report';
  $('#roomTitle').textContent=room||'Choose a room';
  $('#accountBtn').innerHTML=me?esc((myName||me)[0].toUpperCase()):'<i class="ti ti-user"></i>';
 
@@ -722,13 +745,9 @@ function render(){
   const j=job;setTimeout(()=>{$('#status').classList.add('fade');setTimeout(()=>{if(job===j){job=null;$('#status').hidden=true;$('#status').classList.remove('fade')}},500)},2500)}
  else if(!job)$('#status').hidden=true;
 
- // result banner
- const saved=data&&data.log.map(l=>l.match(/Report: (\/api\/files\/\S+)/)).filter(Boolean).at(-1),bn=$('#banner');
- bn.hidden=true;
- if(v&&v.status==='done'){bn.hidden=false;bn.className='sent-line';const list=JSON.parse(v.recipients||'[]');
-  bn.innerHTML=`${v.email_sent_at?`Emailed to ${esc(list.slice(1).join(', ')||list[0])}`:'Saved (email not set up yet)'} · <button class="lnk" id="viewRep">View report</button>`;
-  $('#viewRep').onclick=()=>viewReport(closeSheet)}
- else if(v&&v.status==='failed'){bn.hidden=false;bn.className='banner bad';bn.textContent="The email didn't go out: "+v.error}
+ // result banner: only when sending failed
+ const bn=$('#banner');bn.hidden=true;
+if(v&&v.status==='failed'){bn.hidden=false;bn.className='banner bad';bn.textContent="The email didn't go out: "+v.error}
 
  // inventory
  const products=data?data.products:[];
@@ -843,7 +862,6 @@ function parseCsv(t){const rows=[];let row=[],f='',q=false;
   else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;row.push(f);rows.push(row);row=[];f=''}else f+=ch}
  if(f||row.length){row.push(f);rows.push(row)}return rows}
 const viewSds=p=>viewPdf({url:`/api/files/${p.sds_key}`,title:'SDS · '+p.product_name,name:`SDS - ${p.product_name}.pdf`,back:()=>detail(p.id)});
-const viewReport=(back)=>viewPdf({url:`/api/visits/${visitId}/report.pdf`,title:'Inventory report',name:`Inventory report - ${(data&&data.visit.site_name)||'site'}.pdf`,back});
 
 /* Deleting a product always asks first. */
 function confirmDelete(p){

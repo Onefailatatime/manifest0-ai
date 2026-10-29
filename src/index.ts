@@ -80,7 +80,7 @@ async function createVisit(request: Request, env: Env, origin: string) {
 async function listVisits(env: Env, email: string) {
   if (!isEmail(email)) return error("Enter a valid email.");
   const { results } = await env.DB.prepare(
-    `SELECT v.id, v.site_name, v.status, v.created_at,
+    `SELECT v.id, v.site_name, v.status, v.created_at, v.recipients, v.email_sent_at,
        (SELECT COUNT(*) FROM products p WHERE p.visit_id = v.id AND p.removed = 0) AS products
      FROM visits v WHERE v.user_email = ? AND v.deleted = 0 ORDER BY v.created_at DESC LIMIT 50`,
   ).bind(email.trim().toLowerCase()).all();
