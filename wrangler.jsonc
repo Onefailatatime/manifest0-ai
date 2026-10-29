@@ -5,6 +5,13 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
 
+  // The app owns the domain. manifest0ai.com/join* is a route on the manifest0-beta Worker (the beta landing page);
+  // routes run before custom domains, so /join goes there and everything else comes here.
+  "routes": [
+    { "pattern": "manifest0ai.com", "custom_domain": true },
+    { "pattern": "www.manifest0ai.com", "custom_domain": true }
+  ],
+
   // Static files (the upload page) served from ./public
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
 
