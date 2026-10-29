@@ -465,7 +465,7 @@ function account(){
  openSheet('Account',`${me?`<div class="who"><div class="avatar">${esc((myName||me)[0].toUpperCase())}</div><div><b>${esc(myName||me)}</b><span>${esc(me)}</span></div></div>
   <div class="set-lbl">Your details <span style="font-weight:400;color:var(--m0-text-2)">(shown on reports)</span></div>
   <div class="grid2" style="margin-bottom:22px"><input id="accName" class="field" type="text" placeholder="Your name" value="${esc(myName)}" style="margin:0"><input id="accCompany" class="field" type="text" placeholder="Company" value="${esc(myCompany)}" style="margin:0"></div>`:''}
-  ${me?`<div class="set-lbl">Locations <span style="font-weight:400;color:var(--m0-text-2)">(in progress)</span></div>
+  ${me?`<div class="set-lbl">Locations</div>
   <div class="locs" id="locs"><div class="loc-empty">Loading…</div></div>
   <button class="btn wide" id="newLoc" style="margin:8px 0 14px"><i class="ti ti-plus"></i> New location</button>
   <button class="nav-row" id="openReports"><i class="ti ti-file-text"></i><span>Reports<small>Everything you've sent</small></span><i class="ti ti-chevron-right"></i></button>`:''}
