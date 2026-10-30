@@ -1,4 +1,8 @@
 (function () {
+  // The app video: still poster only for people who ask for less motion.
+  var video = document.querySelector(".phone video");
+  if (video && window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) { video.removeAttribute("autoplay"); video.pause(); }
+
   // Traffic source. A tagged link (?src=card from the printed card QR, ?src=email from our emails, or utm_source /
   // utm_campaign) wins and is remembered for 30 days in localStorage, so the tag survives reloads and coming back later
   // without the query. The apply form always sends it in the hidden "source" field.

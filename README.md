@@ -98,8 +98,9 @@ the Resend account was created with, which is fine for testing.
 
 `manifest0ai.com/` is the beta landing page (`public/index.html`, `landing.css`, `landing.js`). The app is at
 `app.manifest0ai.com` (its home page serves `public/app/`) and also at `/app/` on any host.
-- One screen: logo, headline, one line, a real app screenshot (`public/img/app-screen.webp` with a
-  `.png` fallback, the live app's Inventory screen, same as the postcard) and the apply form. Desktop adds three short points. Dark only (B7), whatever
+- One screen: logo, headline, one line, a ~17 s looping screen recording of the real app (`public/img/app-walkthrough.mp4`,
+  H.264, a demo walk on a local copy: inventory, a product's details, review and send; the poster `app-screen.webp` / `.png`
+  is its first frame, and people who prefer reduced motion see only the poster) and the apply form. Desktop adds three short points. Dark only (B7), whatever
   the device setting. The app itself still follows the device (light B1, dark B7).
 - Apply form asks for work email and company only: `POST /api/landing/apply` saves to `beta_applications`
   (migration `0007_landing.sql`) and emails a "you're on the list" confirmation (once per email).
