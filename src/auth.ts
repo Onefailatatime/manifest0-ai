@@ -7,6 +7,7 @@
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { magicLink } from "better-auth/plugins";
+import { sendEmail } from "./email";
 
 const ROOT = "manifest0ai.com";
 const APP = `https://app.${ROOT}`;
@@ -83,24 +84,11 @@ async function access(env: Env, email: string) {
   return app ? { admin: false, name: app.name, company: app.company } : null;
 }
 
-/** Without RESEND_API_KEY (local dev, tests) the link is logged instead of emailed. */
-async function sendLink(env: Env, email: string, url: string) {
-  if (!env.RESEND_API_KEY) {
-    console.log(`Sign-in link for ${email}: ${url}`);
-    return;
-  }
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: env.EMAIL_FROM,
-      to: [email],
-      subject: "Sign in to Manifest0 AI",
-      html: `<p style="font-family:system-ui,sans-serif">Tap to sign in to Manifest0 AI. The link works once, for 15 minutes.</p>
-        <p><a href="${url}" style="display:inline-block;background:#0b1f3a;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-family:system-ui,sans-serif">Sign in</a></p>
-        <p style="font-family:system-ui,sans-serif;font-size:12px;color:#5a6372">Didn't ask for this? You can ignore this email.</p>`,
-      text: `Sign in to Manifest0 AI (works once, for 15 minutes): ${url}`,
-    }),
+function sendLink(env: Env, email: string, url: string) {
+  return sendEmail(env, email, {
+    subject: "Sign in to Manifest0 AI",
+    lines: ["Tap to sign in to Manifest0 AI. The link works once, for 15 minutes."],
+    button: { label: "Sign in", url },
+    footer: "Didn't ask for this? You can ignore this email.",
   });
-  if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
 }

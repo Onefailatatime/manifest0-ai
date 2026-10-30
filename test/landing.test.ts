@@ -1,6 +1,6 @@
 // Landing page API: apply form, ?src=card tracking, admin for signed-in admins, approving applicants, old links.
 import { env, SELF } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ADMIN, TECH, as, openLink, requestLink, signIn } from "./helpers";
 
 const url = (path: string) => `https://app.test${path}`;
@@ -25,6 +25,15 @@ describe("landing page", () => {
     const out = (await (await admin()).json()) as any;
     expect(out.totals).toMatchObject({ applications: 1, from_card_applications: 0, from_email_applications: 1 });
     expect(out.applications[0]).toMatchObject({ source: "email", from_email: true, name: null, state: null });
+  });
+
+  it("emails a confirmation once, not for a duplicate application", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    await post("/api/landing/apply", application);
+    await post("/api/landing/apply", application);
+    const sent = log.mock.calls.map((c) => String(c[0])).filter((l) => l.startsWith("Email to sam@example.com: You're on the Manifest0 AI beta list"));
+    log.mockRestore();
+    expect(sent).toHaveLength(1);
   });
 
   it("rejects a bad application with field errors", async () => {

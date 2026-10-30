@@ -1,11 +1,12 @@
 // Landing page API (the page itself is public/index.html at /).
-//   POST /api/landing/apply   beta application form
+//   POST /api/landing/apply   beta application form (emails a confirmation)
 //   POST /api/landing/visit   one row per tagged visit (?src=card, ?src=email) or app button tap
 //   GET  /api/landing/admin   applications + counts per source (signed-in admins only, see src/auth.ts)
 //   GET  /api/landing/admin.csv
 //   POST /api/landing/approve {email}  lets an applicant sign in and emails them a sign-in link
 // Tables: migrations/0007_landing.sql (in manifest0-db).
 import { createAuth, isAdmin, signedInUser } from "./auth";
+import { sendEmail } from "./email";
 
 type LandingEnv = Env;
 
@@ -64,6 +65,19 @@ async function apply(req: Request, env: LandingEnv) {
     .bind(crypto.randomUUID(), Date.now(), a.name, a.company, a.email, a.phone, a.state, a.role, a.field_workers, a.containers,
       a.struggles, a.tools, a.source, country(req), clean(req.headers.get("user-agent"), 300) || null).run();
   await logEvent(env, req, "apply", a.source, a.email);
+  // Confirmation, once per application (duplicates return above). A failed email doesn't fail the form.
+  try {
+    await sendEmail(env, a.email, {
+      subject: "You're on the Manifest0 AI beta list",
+      lines: [
+        `Thanks for applying to the Manifest0 AI beta${a.name ? `, ${a.name}` : ""}.`,
+        "We read every application. Once you're approved, we'll email you a link to sign in to the app.",
+      ],
+      footer: "Manifest0 AI · manifest0ai.com",
+    });
+  } catch (err) {
+    console.error(`Confirmation email to ${a.email} failed: ${err}`);
+  }
   return json({ ok: true });
 }
 

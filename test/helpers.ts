@@ -47,8 +47,8 @@ export async function requestLink(email: string) {
       method: "POST", headers: { "Content-Type": "application/json", Origin: "https://app.test" }, body: JSON.stringify({ email }),
     });
     await res.text();
-    const line = log.mock.calls.map((c) => String(c[0])).find((l) => l.startsWith(`Sign-in link for ${email}: `));
-    return line?.split(": ").pop();
+    const line = log.mock.calls.map((c) => String(c[0])).find((l) => l.startsWith(`Email to ${email}: Sign in`));
+    return line?.split(" ").pop();
   } finally {
     log.mockRestore();
   }

@@ -102,7 +102,7 @@ the Resend account was created with, which is fine for testing.
   `.png` fallback, the live app's Inventory screen, same as the postcard) and the apply form. Desktop adds three short points. Dark only (B7), whatever
   the device setting. The app itself still follows the device (light B1, dark B7).
 - Apply form asks for work email and company only: `POST /api/landing/apply` saves to `beta_applications`
-  (migration `0007_landing.sql`). No email is sent yet.
+  (migration `0007_landing.sql`) and emails a "you're on the list" confirmation (once per email).
 - Traffic source: card QR `https://manifest0ai.com/?src=card`, email links `?src=email`. The tag is saved for 30 days
   on the device, sent with the form, and each tagged visit is counted (`landing_events`). `/join` and `/beta` redirect
   to `/` and keep the query. Old report links (`/?visit=ID`) forward to `/app/?visit=ID`.
