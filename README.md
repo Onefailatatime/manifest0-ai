@@ -98,9 +98,9 @@ the Resend account was created with, which is fine for testing.
 
 `manifest0ai.com/` is the beta landing page (`public/index.html`, `landing.css`, `landing.js`). The app is at
 `app.manifest0ai.com` (its home page serves `public/app/`) and also at `/app/` on any host.
-- One screen: logo, headline, one line, a ~29 s looping screen recording of the real app (`public/img/app-walkthrough.mp4`,
+- One screen: logo, headline, one line, a ~20 s looping screen recording of the real app (`public/img/app-walkthrough.mp4`,
   H.264 + AAC) and the apply form. The recording is a demo walk on a local copy: a label photo is snapped (staged camera
-  shot) and read (staged server answers, so no AI call; the app screens are real), then the inventory, a product's
+  shot) and read (staged server answers, so no AI call; the app screens are real), then that product's
   hazards and review and send, shown on a phone on a dark stage that the camera pushes in on, with swoosh and tap sounds and generated music (Google Lyria). It plays muted;
   the speaker button on the phone turns the sound on. The poster `app-screen.webp` / `.png` is its first frame, and
   people who prefer reduced motion see only the poster. Desktop adds three short points. Dark only (B7), whatever
