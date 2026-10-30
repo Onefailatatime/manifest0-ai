@@ -4,6 +4,8 @@
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // wrangler dev would otherwise present local requests as manifest0ai.com, and sign-in would refuse them (src/auth.ts).
+  "dev": { "host": "localhost:8787" },
 
   // manifest0ai.com (and www) = beta landing page at / with the apply form. app.manifest0ai.com = the app.
   // /join and /beta redirect to / here (src/index.ts). If manifest0ai.com/join* is still a route on the
@@ -42,7 +44,8 @@
     // Sender address on our domain, verified in Resend.
     "EMAIL_FROM": "Manifest0 AI <reports@manifest0ai.com>"
   }
-  // Secrets (not in this file): MODEL_API_KEY, RESEND_API_KEY, ADMIN_KEY (12+ chars, opens /admin/).
+  // Secrets (not in this file): MODEL_API_KEY, RESEND_API_KEY, BETTER_AUTH_SECRET (signs sessions),
+  // ADMIN_EMAILS (comma-separated; they sign in as admins and open /admin/). See src/auth.ts.
   // Locally in .dev.vars; in production in the dashboard (Settings → Variables and Secrets).
   // Without RESEND_API_KEY, emails aren't sent; the report is saved to R2 instead (see the log).
 }

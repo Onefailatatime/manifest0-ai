@@ -106,5 +106,17 @@ the Resend account was created with, which is fine for testing.
 - Traffic source: card QR `https://manifest0ai.com/?src=card`, email links `?src=email`. The tag is saved for 30 days
   on the device, sent with the form, and each tagged visit is counted (`landing_events`). `/join` and `/beta` redirect
   to `/` and keep the query. Old report links (`/?visit=ID`) forward to `/app/?visit=ID`.
-- Admin: `/admin/` with the `ADMIN_KEY` secret (12+ chars) shows applications, From card and From email counts and a CSV.
-  Set it once: `npx wrangler secret put ADMIN_KEY`.
+- Admin: `/admin/` (sign in with an admin email) shows applications, From card and From email counts and a CSV.
+  **Approve** lets that applicant sign in to the app and emails them a sign-in link.
+
+## Sign-in
+
+Technicians sign in with a link emailed to them (Better Auth, `src/auth.ts`, tables in `0008_auth.sql`). No passwords.
+- Only approved applicants (Approve on `/admin/`), people who already have an account, and `ADMIN_EMAILS` can sign in.
+  Anyone else sees the same "check your inbox" message but gets no email.
+- Every `/api/visits*`, `/api/products*` and `/api/files/visits/*` request needs a session, and each technician only
+  reaches their own walks (admins too: being admin only opens `/admin/`). SDS PDFs (`/api/files/sds/*`) stay public because client emails link to them.
+- Walks made before sign-in existed are linked by email the first time that technician signs in.
+- Secrets, set once: `npx wrangler secret put BETTER_AUTH_SECRET` (a long random string) and
+  `npx wrangler secret put ADMIN_EMAILS` (comma-separated admin emails). Locally they go in `.dev.vars`.
+- Without `RESEND_API_KEY`, sign-in links are written to the log (`wrangler dev` output) instead of emailed.

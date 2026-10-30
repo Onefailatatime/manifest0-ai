@@ -240,14 +240,14 @@ export class VisitAgent extends Agent<Env, VisitState> {
         });
       }
 
-      const visitUrl = `${this.state.appUrl}/app/?visit=${this.visitId}`;
       const to = recipientsOf(visit);
       const draft = defaultEmail(visit, products);
       const subject = visit.email_subject || draft.subject;
       const message = visit.email_message ?? draft.message;
       // The email is the technician's message; the report itself is the attached PDF.
+      // No link to the walk: the app needs sign-in and clients don't have accounts.
       const html = messageHtml(message) +
-        `<p style="font-family:system-ui,sans-serif;font-size:12px;color:#5a6372">Sent with Manifest0 AI · <a href="${esc(visitUrl)}">View the inventory online</a></p>`;
+        `<p style="font-family:system-ui,sans-serif;font-size:12px;color:#5a6372">Sent with Manifest0 AI</p>`;
 
       if (!this.env.RESEND_API_KEY) {
         // No email provider configured (e.g. local dev): keep the report so it can be opened in the browser.
@@ -267,7 +267,7 @@ export class VisitAgent extends Agent<Env, VisitState> {
           reply_to: visit.user_email,
           subject,
           html,
-          text: `${message}\n\nView the inventory online: ${visitUrl}`,
+          text: message,
           attachments,
         }),
       });
@@ -358,7 +358,7 @@ const safeFilename = (s: string) => s.replace(/[^\w\s.&()-]/g, "").slice(0, 80).
 export const esc = (s: unknown) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-export function reportHtml(visit: VisitRow, products: ProductRow[], attached: Set<string>, appUrl: string, visitUrl: string) {
+export function reportHtml(visit: VisitRow, products: ProductRow[], attached: Set<string>, appUrl: string) {
   // Email-safe: tables and inline styles only. Grouped by room, one row per product.
   const td = "padding:10px 8px;border-bottom:1px solid #e3e6ea;vertical-align:top;font-size:13px";
   const muted = "color:#5a6372;font-size:12px";
@@ -406,8 +406,7 @@ export function reportHtml(visit: VisitRow, products: ProductRow[], attached: Se
       <tr><th style="${th}">#</th><th style="${th}">Product</th><th style="${th}">Containers</th><th style="${th}">EPA code</th><th style="${th}">DOT hazard</th><th style="${th}">SDS</th></tr>
       ${body}
     </table>
-    <p style="${muted};margin-top:16px">Product data was read from label photos by AI and checked by the technician. Verify against the attached SDS before disposal.
-    <a href="${esc(visitUrl)}" style="color:#1c5fe4">View online</a></p>
+    <p style="${muted};margin-top:16px">Product data was read from label photos by AI and checked by the technician. Verify against the attached SDS before disposal.</p>
   </div>`;
 }
 

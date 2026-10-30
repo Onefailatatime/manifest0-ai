@@ -1,11 +1,13 @@
 // Landing page API (the page itself is public/index.html at /).
 //   POST /api/landing/apply   beta application form
 //   POST /api/landing/visit   one row per tagged visit (?src=card, ?src=email) or app button tap
-//   GET  /api/landing/admin   applications + counts per source, header x-admin-key = secret ADMIN_KEY
+//   GET  /api/landing/admin   applications + counts per source (signed-in admins only, see src/auth.ts)
 //   GET  /api/landing/admin.csv
+//   POST /api/landing/approve {email}  lets an applicant sign in and emails them a sign-in link
 // Tables: migrations/0007_landing.sql (in manifest0-db).
+import { createAuth, isAdmin, signedInUser } from "./auth";
 
-type LandingEnv = { DB: D1Database; ADMIN_KEY?: string };
+type LandingEnv = Env;
 
 const TZ = "America/Los_Angeles";
 const FIELD_WORKERS = ["1", "2 to 5", "6 to 10", "11 to 25", "26+"];
@@ -74,20 +76,17 @@ async function visit(req: Request, env: LandingEnv) {
   return json({ ok: true });
 }
 
-function authorized(req: Request, env: LandingEnv) {
-  const key = req.headers.get("x-admin-key") || "";
-  const want = env.ADMIN_KEY || "";
-  if (want.length < 12 || key.length !== want.length) return false;
-  let r = 0;
-  for (let i = 0; i < key.length; i++) r |= key.charCodeAt(i) ^ want.charCodeAt(i);
-  return r === 0;
+async function authorized(req: Request, env: LandingEnv) {
+  const user = await signedInUser(env, req);
+  return !!user && isAdmin(user);
 }
 
 type AppRow = { id: string; created_at: number; name: string | null; company: string; email: string; phone: string | null; state: string | null;
-  role: string | null; field_workers: string | null; containers_per_month: string | null; struggles: string | null; tools_wanted: string | null; source: string | null };
+  role: string | null; field_workers: string | null; containers_per_month: string | null; struggles: string | null; tools_wanted: string | null; source: string | null;
+  approved_at: number | null };
 
 async function admin(req: Request, env: LandingEnv) {
-  if (!authorized(req, env)) return fail(env.ADMIN_KEY ? "Wrong admin key." : "ADMIN_KEY is not set on the Worker.", 401);
+  if (!(await authorized(req, env))) return fail("Sign in as an admin.", 401);
   const [{ results: apps }, { results: ev }] = await Promise.all([
     env.DB.prepare("SELECT * FROM beta_applications ORDER BY created_at DESC LIMIT 500").all<AppRow>(),
     env.DB.prepare("SELECT COALESCE(source,'direct') AS source, kind, COUNT(*) AS n FROM landing_events GROUP BY 1,2").all<{ source: string; kind: string; n: number }>(),
@@ -104,17 +103,27 @@ async function admin(req: Request, env: LandingEnv) {
     totals: { applications: apps.length, from_card_applications: card.applications, from_card_visits: card.visits, from_card_app_clicks: card.app_clicks,
       from_email_applications: mail.applications, from_email_visits: mail.visits },
     sources: [...src.values()].sort((x, y) => y.applications - x.applications || y.visits - x.visits),
-    applications: apps.map((a) => ({ ...a, created_pt: ptTime(a.created_at), from_card: a.source === "card", from_email: a.source === "email" })),
+    applications: apps.map((a) => ({ ...a, created_pt: ptTime(a.created_at), approved: !!a.approved_at, from_card: a.source === "card", from_email: a.source === "email" })),
   });
 }
 
 async function adminCsv(req: Request, env: LandingEnv) {
-  if (!authorized(req, env)) return fail("Wrong admin key.", 401);
+  if (!(await authorized(req, env))) return fail("Sign in as an admin.", 401);
   const { results } = await env.DB.prepare("SELECT * FROM beta_applications ORDER BY created_at DESC").all<AppRow>();
   const cols = ["created_pt", "name", "company", "email", "phone", "state", "role", "field_workers", "containers_per_month", "struggles", "tools_wanted", "source"] as const;
   const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const lines = [cols.join(","), ...results.map((r) => cols.map((c) => cell(c === "created_pt" ? ptTime(r.created_at) : r[c])).join(","))];
   return new Response(lines.join("\n"), { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="beta-applications.csv"', "cache-control": "no-store" } });
+}
+
+/** Approve an applicant: they can now sign in, and get a sign-in link by email (also fine to press again to resend it). */
+async function approve(req: Request, env: LandingEnv) {
+  if (!(await authorized(req, env))) return fail("Sign in as an admin.", 401);
+  const email = clean((await readJson(req))?.email, 254).toLowerCase();
+  const { meta } = await env.DB.prepare("UPDATE beta_applications SET approved_at = COALESCE(approved_at, ?) WHERE email = ?").bind(Date.now(), email).run();
+  if (!meta.changes) return fail("No application with that email.", 404);
+  await createAuth(env, req).api.signInMagicLink({ body: { email, callbackURL: "/app/" }, headers: req.headers });
+  return json({ ok: true });
 }
 
 /** Returns a Response for /api/landing/* paths, or null when the path is not ours. */
@@ -124,6 +133,7 @@ export async function handleLanding(req: Request, env: LandingEnv, pathname: str
   if (m === "POST" && pathname === "/api/landing/visit") return visit(req, env);
   if (m === "GET" && pathname === "/api/landing/admin") return admin(req, env);
   if (m === "GET" && pathname === "/api/landing/admin.csv") return adminCsv(req, env);
+  if (m === "POST" && pathname === "/api/landing/approve") return approve(req, env);
   if (pathname.startsWith("/api/landing/")) return fail("Not found.", 404);
   return null;
 }

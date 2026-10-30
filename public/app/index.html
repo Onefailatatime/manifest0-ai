@@ -220,6 +220,7 @@ body.out #app,body.out .sticky{display:none}
 .signin .err{color:#FCA5A5}
 .go-btn{width:100%;min-height:var(--m0-btn-h);margin-top:4px;border:0;border-radius:var(--m0-radius-md);background:var(--m0-hazard);color:var(--m0-on-hazard);font-size:1.0625rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
 .demo-note{text-align:center;font-size:var(--m0-fs-xs);opacity:.55;margin-top:14px}
+.sent-msg{font-size:1.0625rem;line-height:1.45;margin-bottom:18px}
 @media (min-width:600px){.signin-in{justify-content:center}}
 
 /* GHS hazard pictograms (official images) in the product page */
@@ -319,7 +320,7 @@ body.out #app,body.out .sticky{display:none}
 </style>
 </head>
 <body>
-<!-- demo sign-in: only remembers the email on this phone. Real sign-in comes later. -->
+<!-- sign-in: the technician enters their email and gets a sign-in link (src/auth.ts). Only approved beta applicants can sign in. -->
 <section class="signin" id="signin" hidden>
   <div class="stripe" aria-hidden="true"></div>
   <form class="signin-in" id="signinForm" novalidate>
@@ -328,13 +329,17 @@ body.out #app,body.out .sticky{display:none}
       <h1>Welcome to Manifest0 AI</h1>
       <p>Zero guesswork on hazardous waste.</p>
     </div>
-    <label class="sr" for="me">Work email</label>
-    <input id="meName" class="field" type="text" autocomplete="name" placeholder="Your name">
-    <input id="meCompany" class="field" type="text" autocomplete="organization" placeholder="Company (optional)">
-    <input id="me" class="field" type="email" inputmode="email" autocomplete="email" placeholder="Work email">
-    <div class="err" id="signinErr" role="alert" hidden></div>
-    <button class="go-btn" type="submit">Continue <i class="ti ti-arrow-right"></i></button>
-    <div class="demo-note">Demo version: no password needed yet.</div>
+    <div id="signinAsk">
+      <label class="sr" for="me">Work email</label>
+      <input id="me" class="field" type="email" inputmode="email" autocomplete="email" placeholder="Work email">
+      <div class="err" id="signinErr" role="alert" hidden></div>
+      <button class="go-btn" type="submit">Email me a sign-in link <i class="ti ti-arrow-right"></i></button>
+      <div class="demo-note">No password. For approved beta testers.</div>
+    </div>
+    <div id="signinSent" hidden>
+      <p class="sent-msg" id="sentMsg" role="status"></p>
+      <button class="go-btn" type="button" id="signinAgain">Use a different email</button>
+    </div>
   </form>
 </section>
 
@@ -452,22 +457,35 @@ let tray=[], uid=0, uploading=0, pollTimer=null, lastRows='';
 const isOpen=()=>!data||data.visit.status==='open';
 const sdsPending=()=>data?data.products.filter(p=>p.sds_status==='pending').length:0;
 const busy=()=>uploading>0||!!data&&(data.photos.pending>0||sdsPending()>0||data.visit.status==='finishing');
-let me=store.get('m0-me')||'';
+let me='',ready=false;   // the signed-in email, from the session; ready once we know whether there is one
 
-async function api(path,opts){const r=await fetch(path,opts);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong ('+r.status+')');return j}
-async function load(){if(!visitId)return render();
+async function api(path,opts){const r=await fetch(path,opts);const j=await r.json().catch(()=>({}));
+ if(r.status===401&&!path.startsWith('/api/auth/')){me='';render()}   // session ended: back to sign-in
+ if(!r.ok)throw new Error(j.error||j.message||'Something went wrong ('+r.status+')');return j}
+const post=(path,body)=>api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+async function load(){if(!visitId||!me)return render();
  try{data=await api('/api/visits/'+visitId)}catch(e){toast(e.message);return}
  render();clearTimeout(pollTimer);if(busy())pollTimer=setTimeout(load,2500)}
 
-/* ---------- demo sign-in and account ---------- */
-let myName=store.get('m0-name')||'',myCompany=store.get('m0-company')||'';
-$('#meName').value=myName;$('#meCompany').value=myCompany;
-function signIn(){const v=$('#me').value.trim(),n=$('#meName').value.trim(),ok=RE.test(v);
- const msg=!n?'Enter your name.':!ok?'Enter your work email.':'';
- $('#meName').setAttribute('aria-invalid',!n);$('#me').setAttribute('aria-invalid',!ok);$('#signinErr').hidden=!msg;$('#signinErr').textContent=msg;
- if(msg)return;me=v;myName=n;myCompany=$('#meCompany').value.trim();
- store.set('m0-me',me);store.set('m0-name',myName);store.set('m0-company',myCompany);render()}
+/* ---------- sign-in (emailed link) and account ---------- */
+let myName='',myCompany='';
+const signinErr=msg=>{$('#signinErr').hidden=!msg;$('#signinErr').textContent=msg||''};
+async function signIn(){const v=$('#me').value.trim(),ok=RE.test(v);
+ $('#me').setAttribute('aria-invalid',!ok);signinErr(ok?'':'Enter your work email.');if(!ok)return;
+ // The link brings them back here (same walk, if one was open).
+ try{await post('/api/auth/sign-in/magic-link',{email:v,callbackURL:location.pathname+location.search})}
+ catch(e){signinErr(/too many/i.test(e.message)?'Too many tries. Wait a minute and try again.':e.message);return}
+ $('#sentMsg').textContent=`If ${v} is approved for the beta, a sign-in link is on its way. Open it on this phone. It works once, for 15 minutes.`;
+ $('#signinAsk').hidden=true;$('#signinSent').hidden=false}
 $('#signinForm').addEventListener('submit',e=>{e.preventDefault();signIn()});
+$('#signinAgain').onclick=()=>{$('#signinSent').hidden=true;$('#signinAsk').hidden=false;$('#me').focus()};
+/* Who is signed in. A failed sign-in link comes back with ?error=. */
+async function boot(){
+ const q=new URLSearchParams(location.search),err=q.get('error');
+ if(err){q.delete('error');q.delete('error_description');history.replaceState(null,'',location.pathname+(q.size?'?'+q:''));
+  signinErr(err==='NOT_APPROVED'?"This email isn't approved for the beta yet.":err==='INVALID_TOKEN'?'That sign-in link expired or was already used. Ask for a new one.':"Couldn't sign you in. Ask for a new link.")}
+ try{const s=await api('/api/auth/get-session');if(s&&s.user){me=s.user.email;myName=s.user.name||'';myCompany=s.user.company||''}}catch(e){}
+ ready=true;load()}
 $('#accountBtn').onclick=account;
 function account(){
  const pick=store.get('m0-theme')||'system',seg=(v,icon,label)=>`<button data-theme-pick="${v}" aria-pressed="${pick===v}"><i class="ti ti-${icon}"></i>${label}</button>`;
@@ -484,9 +502,11 @@ function account(){
  document.querySelectorAll('[data-theme-pick]').forEach(b=>b.onclick=()=>{store.set('m0-theme',b.dataset.themePick);applyTheme();
   document.querySelectorAll('[data-theme-pick]').forEach(x=>x.setAttribute('aria-pressed',x===b))});
  if(!me)return;
- $('#accName').onchange=e=>{const v=e.target.value.trim();if(!v){e.target.value=myName;return}myName=v;store.set('m0-name',v);render();toast('Saved')};
- $('#accCompany').onchange=e=>{myCompany=e.target.value.trim();store.set('m0-company',myCompany);toast('Saved')};
- $('#signOut').onclick=()=>{closeSheet();me='';store.set('m0-me','');$('#me').value='';newWalk()};
+ $('#accName').onchange=async e=>{const v=e.target.value.trim();if(!v){e.target.value=myName;return}
+  try{await post('/api/auth/update-user',{name:v})}catch(err){toast(err.message);return}myName=v;render();toast('Saved')};
+ $('#accCompany').onchange=async e=>{const v=e.target.value.trim();
+  try{await post('/api/auth/update-user',{company:v})}catch(err){toast(err.message);return}myCompany=v;toast('Saved')};
+ $('#signOut').onclick=async()=>{closeSheet();try{await post('/api/auth/sign-out',{})}catch(e){}me='';$('#me').value='';newWalk()};
  $('#openLocations').onclick=locationsPage;
  $('#openReports').onclick=reportsPage;
  myVisits().then(list=>{if(!list||!$('#locCount'))return;const open=list.filter(inProgress).length,sent=list.length-open;
@@ -506,7 +526,7 @@ $('#siteRow').onclick=e=>{e.stopPropagation();toggleSites()};
 $('#siteList').addEventListener('click',e=>{const b=e.target.closest('[data-site]');if(!b)return;toggleSites(false);openVisit(b.dataset.site)});
 $('#siteNew').onclick=()=>{toggleSites(false);newWalk()};
 
-const myVisits=async()=>{try{return (await api('/api/visits?email='+encodeURIComponent(me))).visits}catch(e){return null}};
+const myVisits=async()=>{try{return (await api('/api/visits')).visits}catch(e){return null}};
 const dateShort=d=>new Date(d.replace(' ','T')+'Z').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
 /* A full-page list with a search box on top (Locations and Reports). */
 async function listPage({title,top='',filter,match,row,empty,none,wire}){
@@ -547,7 +567,7 @@ function confirmDeleteLocation(v){
   <div class="grid2" style="margin-top:18px"><button class="btn" id="locNo">Cancel</button><button class="btn danger" id="locYes"><i class="ti ti-trash"></i> Yes, delete</button></div>`);
  $('#locNo').onclick=locationsPage;
  $('#locYes').onclick=async()=>{
-  try{await api(`/api/visits/${v.id}?email=${encodeURIComponent(me)}`,{method:'DELETE'})}catch(e){toast(e.message);return}
+  try{await api(`/api/visits/${v.id}`,{method:'DELETE'})}catch(e){toast(e.message);return}
   if(v.id===visitId)newWalk();
   toast('Deleted '+(v.site_name||'location'));locationsPage()}}
 async function openVisit(id){
@@ -567,7 +587,7 @@ async function startWalk(){
  const bad=!site?'Enter the site name.':!clients.length?'Enter the client email.':clients.find(e=>!RE.test(e))?'Check this address: '+clients.find(e=>!RE.test(e)):!r?'Enter the first room.':'';
  $('#client').setAttribute('aria-invalid',!clients.length||clients.some(e=>!RE.test(e)));$('#room').setAttribute('aria-invalid',!r);
  $('#setupErr').hidden=!bad;$('#setupErr').textContent=bad;if(bad)return;
- try{const res=await api('/api/visits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recipients:[me,...clients],siteName:site,preparedBy:myName,company:myCompany})});
+ try{const res=await api('/api/visits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recipients:clients,siteName:site})});
   visitId=res.visitId;history.replaceState(null,'','?visit='+visitId);setRoom(r);await load()}
  catch(e){toast(e.message)}}
 
@@ -743,9 +763,9 @@ function showStatus(title,pct,steps,done){
  $('.ld-fill').style.transform=`translateY(${55.5-51*h}px)`;$('.ld-zero').style.strokeDashoffset=100-pct;
  $('#feed').innerHTML=steps.map(([t,ok])=>`<li><i class="ti ti-${ok?'check':'point'}"></i>${esc(t)}</li>`).join('')}
 
-function render(){
+function render(){if(!ready){document.body.classList.add('out');return}
  const v=data&&data.visit,open=isOpen(),walking=!!visitId,signedIn=!!me;
- $('#signin').hidden=signedIn;document.body.classList.toggle('out',!signedIn);$('#setup').hidden=!signedIn||walking;$('#walk').hidden=!signedIn||!walking;
+ $('#signin').hidden=signedIn||!ready;document.body.classList.toggle('out',!signedIn);$('#setup').hidden=!signedIn||walking;$('#walk').hidden=!signedIn||!walking;
  const roomPicker=signedIn&&walking&&open;
  $('#siteRow').hidden=!walking;$('#siteLine').textContent=(v&&v.site_name)||'';
  $('#pageTitle').hidden=roomPicker;$('#roomBtn').hidden=!roomPicker;$('#capture').hidden=!walking||!open;
@@ -891,7 +911,7 @@ function confirmDelete(p){
  $('#delYes').onclick=async()=>{closeSheet();if(await patch(p.id,{removed:true}))toast('Deleted '+p.product_name,'Undo',()=>patch(p.id,{removed:false},'Restored'))}}
 function refreshSheet(id){if(sheetFor!==id)return;const y=$('#sheet').scrollTop;detail(id);$('#sheet').scrollTop=y}
 
-load();
+boot();
 })();
 </script>
 </body>

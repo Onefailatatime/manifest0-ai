@@ -1,11 +1,12 @@
-// Landing page API: apply form, ?src=card tracking, admin behind ADMIN_KEY, old links.
-import { SELF } from "cloudflare:test";
+// Landing page API: apply form, ?src=card tracking, admin for signed-in admins, approving applicants, old links.
+import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { ADMIN, TECH, as, openLink, requestLink, signIn } from "./helpers";
 
 const url = (path: string) => `https://app.test${path}`;
 const post = (path: string, body: unknown) =>
   SELF.fetch(url(path), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-const admin = (key = "test-admin-key-123") => SELF.fetch(url("/api/landing/admin"), { headers: { "x-admin-key": key } });
+const admin = async () => as(await signIn(ADMIN, { approved: false }))("/api/landing/admin");
 // The page sends only work email, company and the source tag.
 const application = { company: "Example Waste Co", email: "Sam@Example.com", source: "card" };
 
@@ -34,9 +35,27 @@ describe("landing page", () => {
     expect(((await bad.json()) as any).errors).toHaveProperty("state");
   });
 
-  it("keeps admin behind ADMIN_KEY", async () => {
-    expect((await admin("wrong-key-wrong-key")).status).toBe(401);
+  it("keeps admin for signed-in admins only", async () => {
+    expect((await SELF.fetch(url("/api/landing/admin"))).status).toBe(401);
     expect((await SELF.fetch(url("/api/landing/admin.csv"))).status).toBe(401);
+    const tech = as(await signIn(TECH));
+    expect((await tech("/api/landing/admin")).status).toBe(401);
+    expect((await tech("/api/landing/approve", { method: "POST", body: JSON.stringify({ email: TECH }) })).status).toBe(401);
+  });
+
+  it("approving an applicant lets them sign in, with their company on the account", async () => {
+    await post("/api/landing/apply", application);
+    expect(await requestLink("sam@example.com")).toBeUndefined();     // not approved yet: no link
+    const boss = as(await signIn(ADMIN, { approved: false }));
+    const res = await boss("/api/landing/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "sam@example.com" }) });
+    expect(await res.json()).toEqual({ ok: true });
+    expect(((await (await admin()).json()) as any).applications[0].approved).toBe(true);
+
+    const sam = as(await openLink((await requestLink("sam@example.com"))!));
+    const { user } = (await (await sam("/api/auth/get-session")).json()) as any;
+    expect(user).toMatchObject({ email: "sam@example.com", company: "Example Waste Co", role: "user" });
+    const row = await env.DB.prepare("SELECT approved_at FROM beta_applications WHERE email = ?").bind("sam@example.com").first();
+    expect(row?.approved_at).toBeTruthy();
   });
 
   it("serves the app on app.manifest0ai.com/ and the landing page on manifest0ai.com/", async () => {

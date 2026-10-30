@@ -23,6 +23,7 @@ th{color:var(--m0-text-2);font-weight:600}
 .app:last-child{border-bottom:0}
 .app h3{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .badge{font-size:var(--m0-fs-xs);font-weight:700;background:var(--m0-accent);color:var(--m0-on-accent);border-radius:var(--m0-radius-pill);padding:2px 8px}
+.app .approve{margin-top:8px}
 .app p{margin:2px 0;color:var(--m0-text-2);font-size:var(--m0-fs-sm);overflow-wrap:anywhere}
 </style>
 </head>
@@ -30,14 +31,15 @@ th{color:var(--m0-text-2);font-weight:600}
 <div class="wrap">
   <header class="top">
     <a class="brand" href="/" aria-label="Manifest0 AI home"><img src="/logo/lockup-white-on-dark.svg" alt="Manifest0 AI" width="161" height="36"></a>
-    <button class="btn-ghost" id="lock" hidden>Lock</button>
+    <button class="btn-ghost" id="lock" hidden>Sign out</button>
   </header>
   <main>
     <section class="card pad-lg" id="login">
       <h2>Beta admin</h2>
       <div class="alert error" id="err" role="alert"></div>
-      <form id="keyForm"><div class="field"><label for="key">Admin key</label><input id="key" type="password" autocomplete="current-password"></div>
-      <button class="btn" type="submit">Open</button></form>
+      <form id="signinForm"><div class="field"><label for="email">Admin email</label><input id="email" type="email" autocomplete="email" required></div>
+      <button class="btn" type="submit">Email me a sign-in link</button></form>
+      <p id="sent" hidden>Check your inbox for the sign-in link.</p>
     </section>
     <section id="data" hidden>
       <div class="kpis">

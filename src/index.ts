@@ -4,6 +4,7 @@ import { CONTAINER_TYPES, type ContainerType } from "./muse";
 import { defaultEmail, inventoryCsv, type ProductRow, type VisitRow } from "./visit-agent";
 import { reportPdf } from "./report-pdf";
 import { handleLanding } from "./landing";
+import { createAuth, signedInUser, type AppUser } from "./auth";
 
 /** Byte-order mark: makes Excel open the CSV as UTF-8 (accents, symbols). */
 const BOM = String.fromCharCode(0xfeff);
@@ -33,14 +34,24 @@ export default {
     // Old links: /join and /beta now land on the home page, keeping the query (?src=card).
     if (/^\/(join|beta)(\/.*)?$/.test(pathname)) return Response.redirect(`${url.origin}/${url.search}`, 301);
 
-    if (method === "POST" && pathname === "/api/visits") return createVisit(request, env, url.origin);
-    if (method === "GET" && pathname === "/api/visits") return listVisits(env, url.searchParams.get("email") ?? "");
+    // Sign-in (src/auth.ts).
+    if (pathname.startsWith("/api/auth/")) return createAuth(env, request).handler(request);
+
+    // SDS PDFs are public: the report email links to them. Everything else under /api needs sign-in.
+    if (method === "GET" && pathname.startsWith("/api/files/sds/")) return file(env, url);
+    if (!pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
+    const user = await signedInUser(env, request);
+    if (!user) return error("Sign in first.", 401);
+
+    if (method === "POST" && pathname === "/api/visits") return createVisit(request, env, url.origin, user);
+    if (method === "GET" && pathname === "/api/visits") return listVisits(env, user);
 
     const visit = pathname.match(/^\/api\/visits\/([\w-]+)(\/photos|\/finish|\/report|\/report\.pdf|\/inventory\.csv)?$/);
     if (visit) {
       const [, visitId, action] = visit;
+      if (!(await canOpen(env, user, visitId))) return error("This location was deleted or doesn't exist.", 404);
       if (method === "GET" && !action) return getVisit(env, visitId);
-      if (method === "DELETE" && !action) return deleteVisit(env, visitId, url.searchParams.get("email") ?? "");
+      if (method === "DELETE" && !action) return deleteVisit(env, visitId);
       if (method === "POST" && action === "/photos") return addPhotos(request, env, visitId);
       if (method === "POST" && action === "/finish") return finishVisit(request, env, visitId);
       if (method === "GET" && action === "/report") return reportPreview(env, visitId);
@@ -49,62 +60,75 @@ export default {
     }
 
     const product = pathname.match(/^\/api\/products\/([\w-]+)$/);
-    if (method === "PATCH" && product) return editProduct(request, env, product[1]);
-
-    if (method === "GET" && pathname.startsWith("/api/files/")) {
-      const obj = await env.FILES.get(decodeURIComponent(pathname.slice("/api/files/".length)));
-      if (!obj) return new Response("Not found", { status: 404 });
-      const headers = new Headers();
-      obj.writeHttpMetadata(headers);
-      // Open in the browser by default; ?download=1 (the Download button) saves it, named by ?name=.
-      const name = (url.searchParams.get("name") ?? pathname.split("/").pop() ?? "file").replace(/[^\w\s.&()-]/g, "");
-      headers.set("Content-Disposition", `${url.searchParams.has("download") ? "attachment" : "inline"}; filename="${name}"`);
-      return new Response(obj.body, { headers });
+    if (method === "PATCH" && product) {
+      const row = await env.DB.prepare("SELECT visit_id FROM products WHERE id = ?").bind(product[1]).first<{ visit_id: string }>();
+      if (!row || !(await canOpen(env, user, row.visit_id))) return error("Product not found.", 404);
+      return editProduct(request, env, product[1]);
     }
 
-    // Everything else (the page) is served from ./public
-    return env.ASSETS.fetch(request);
+    // Photos and saved reports: visits/<visitId>/..., only for whoever can open that visit.
+    if (method === "GET" && pathname.startsWith("/api/files/")) {
+      const visitId = decodeURIComponent(pathname).match(/^\/api\/files\/visits\/([\w-]+)\//)?.[1];
+      if (!visitId || !(await canOpen(env, user, visitId))) return new Response("Not found", { status: 404 });
+      return file(env, url);
+    }
+
+    return error("Not found.", 404);
   },
 } satisfies ExportedHandler<Env>;
 
-/** Start a site visit and its agent. The first recipient is the technician (reply-to), the rest are the client. */
-async function createVisit(request: Request, env: Env, origin: string) {
-  const body = (await request.json()) as { recipients?: string[]; siteName?: string; preparedBy?: string; company?: string };
-  const recipients = [...new Set((body.recipients ?? []).map((e) => String(e).trim().toLowerCase()).filter(Boolean))];
-  if (!recipients.length || recipients.length > 10 || !recipients.every(isEmail)) return error("Enter 1–10 valid email addresses.");
+/** Everyone, admins included, opens only their own visits. */
+async function canOpen(env: Env, user: AppUser, visitId: string) {
+  return !!(await env.DB.prepare("SELECT 1 FROM visits WHERE id = ? AND user_id = ? AND deleted = 0").bind(visitId, user.id).first());
+}
+
+/** A file from R2. Opens in the browser by default; ?download=1 (the Download button) saves it, named by ?name=. */
+async function file(env: Env, url: URL) {
+  const obj = await env.FILES.get(decodeURIComponent(url.pathname.slice("/api/files/".length)));
+  if (!obj) return new Response("Not found", { status: 404 });
+  const headers = new Headers();
+  obj.writeHttpMetadata(headers);
+  const name = (url.searchParams.get("name") ?? url.pathname.split("/").pop() ?? "file").replace(/[^\w\s.&()-]/g, "");
+  headers.set("Content-Disposition", `${url.searchParams.has("download") ? "attachment" : "inline"}; filename="${name}"`);
+  return new Response(obj.body, { headers });
+}
+
+/**
+ * Start a site visit and its agent. The signed-in technician is the first recipient (reply-to), the rest are the client.
+ * The report shows the technician's name and company from their account.
+ */
+async function createVisit(request: Request, env: Env, origin: string, user: AppUser) {
+  const body = (await request.json()) as { recipients?: string[]; siteName?: string };
+  const clients = [...new Set((body.recipients ?? []).map((e) => String(e).trim().toLowerCase()).filter(Boolean))].filter((e) => e !== user.email);
+  if (!clients.length || clients.length > 9 || !clients.every(isEmail)) return error("Enter 1–9 valid client email addresses.");
   const siteName = body.siteName?.trim();
   if (!siteName) return error("Enter the site name.");
+  const recipients = [user.email, ...clients];
 
   const visitId = crypto.randomUUID();
-  await env.DB.prepare("INSERT INTO visits (id, user_email, client_email, recipients, site_name, prepared_by, company) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .bind(visitId, recipients[0], recipients.slice(1).join(", "), JSON.stringify(recipients), siteName,
-      body.preparedBy?.trim().slice(0, 100) || null, body.company?.trim().slice(0, 100) || null).run();
+  await env.DB.prepare("INSERT INTO visits (id, user_id, user_email, client_email, recipients, site_name, prepared_by, company) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+    .bind(visitId, user.id, user.email, clients.join(", "), JSON.stringify(recipients), siteName,
+      user.name?.trim().slice(0, 100) || null, user.company?.trim().slice(0, 100) || null).run();
 
   const agent = await getAgentByName(env.VisitAgent, visitId);
   await agent.open(visitId, origin);
   return Response.json({ visitId });
 }
 
-/**
- * The technician's site walks, newest first (the Locations list).
- * Demo: filtered by the email the app signed in with. Once real login exists this must come from the session, not the URL.
- */
-async function listVisits(env: Env, email: string) {
-  if (!isEmail(email)) return error("Enter a valid email.");
+/** The technician's site walks, newest first (the Locations list). */
+async function listVisits(env: Env, user: AppUser) {
   const { results } = await env.DB.prepare(
     `SELECT v.id, v.site_name, v.status, v.created_at, v.recipients, v.email_sent_at,
        (SELECT COUNT(*) FROM products p WHERE p.visit_id = v.id AND p.removed = 0) AS products
-     FROM visits v WHERE v.user_email = ? AND v.deleted = 0 ORDER BY v.created_at DESC LIMIT 50`,
-  ).bind(email.trim().toLowerCase()).all();
+     FROM visits v WHERE v.user_id = ? AND v.deleted = 0 ORDER BY v.created_at DESC LIMIT 50`,
+  ).bind(user.id).all();
   return Response.json({ visits: results });
 }
 
-/** Delete a site walk from Locations (hidden, not erased). Only its technician can, and not while the report is sending. */
-async function deleteVisit(env: Env, visitId: string, email: string) {
-  const visit = await env.DB.prepare("SELECT user_email, status FROM visits WHERE id = ? AND deleted = 0").bind(visitId)
-    .first<{ user_email: string; status: string }>();
+/** Delete a site walk from Locations (hidden, not erased). Not while the report is sending. */
+async function deleteVisit(env: Env, visitId: string) {
+  const visit = await env.DB.prepare("SELECT status FROM visits WHERE id = ? AND deleted = 0").bind(visitId).first<{ status: string }>();
   if (!visit) return error("Location not found.", 404);
-  if (visit.user_email !== email.trim().toLowerCase()) return error("You can only delete your own locations.", 403);
   if (visit.status === "finishing") return error("The report is being sent. Try again in a minute.");
   await env.DB.prepare("UPDATE visits SET deleted = 1 WHERE id = ?").bind(visitId).run();
   return Response.json({ ok: true });
