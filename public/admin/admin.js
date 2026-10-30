@@ -5,33 +5,55 @@
   var label = function (s) { return s === "card" ? "Card" : s === "direct" ? "Typed or direct" : s === "web" ? "Another website" : s === "email" ? "Email" : s; };
   var post = function (path, body) { return fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); };
   var showErr = function (msg) { $("err").textContent = msg; $("err").classList.add("show"); };
+
+  function applicant(a) {
+    // The form asks only for email and company; name, state, role, phone and sizes show when present.
+    var who = [a.company, a.role, a.state].filter(Boolean).map(esc).join(" · ");
+    var more = [a.phone, a.field_workers ? a.field_workers + " field workers" : "", a.containers_per_month ? a.containers_per_month + " containers/month" : ""]
+      .filter(Boolean).map(esc).join(" · ");
+    var src = a.source && a.source !== "direct" ? ' <span class="pill src">From ' + esc(label(a.source).toLowerCase()) + "</span>" : "";
+    return '<div class="app' + (a.approved ? "" : " pending") + '">' +
+      '<div class="avatar" aria-hidden="true">' + esc((a.name || a.email).charAt(0)) + "</div>" +
+      '<div class="who"><div class="name">' + esc(a.name || a.email) +
+        (a.approved ? '<span class="pill ok">Approved</span>' : '<span class="pill wait">Waiting</span>') + src + "</div>" +
+        (a.name ? '<div class="line">' + esc(a.email) + "</div>" : "") +
+        (who ? '<div class="line">' + who + "</div>" : "") +
+        (more ? '<div class="line">' + more + "</div>" : "") +
+        '<div class="meta">Applied ' + esc(a.created_pt) + "</div></div>" +
+      '<button class="btn ' + (a.approved ? "btn-quiet" : "btn-primary") + '" data-email="' + esc(a.email) + '">' +
+        (a.approved ? "Resend sign-in link" : "Approve") + "</button></div>";
+  }
+
   function load() {
     fetch("/api/landing/admin").then(function (r) { return r.json(); }).then(function (d) {
-      if (!d.ok) { $("login").hidden = false; $("data").hidden = true; $("lock").hidden = true; return; }
-      $("login").hidden = true; $("data").hidden = false; $("lock").hidden = false;
-      $("kApps").textContent = d.totals.applications; $("kCard").textContent = d.totals.from_card_applications;
-      $("kCardVisits").textContent = d.totals.from_card_visits; $("kEmail").textContent = d.totals.from_email_applications;
-      $("srcRows").innerHTML = d.sources.map(function (s) { return "<tr><td>" + esc(label(s.source)) + "</td><td>" + s.visits + "</td><td>" + s.app_clicks + "</td><td>" + s.applications + "</td></tr>"; }).join("") || '<tr><td colspan="4">Nothing yet.</td></tr>';
-      $("apps").innerHTML = d.applications.map(function (a) {
-        // The form asks only for email and company; name, state, role and field workers show when present.
-        var who = [a.company, a.state, a.role].filter(Boolean).map(esc).join(" &middot; ");
-        var more = [a.field_workers ? "Field workers: " + esc(a.field_workers) : "", a.containers_per_month ? "Containers per month: " + esc(a.containers_per_month) : ""].filter(Boolean).join(" &middot; ");
-        return '<div class="app"><h3>' + esc(a.name || a.email) + (a.from_card ? ' <span class="badge">From card</span>' : a.from_email ? ' <span class="badge">From email</span>' : "") +
-          (a.approved ? ' <span class="badge">Approved</span>' : "") + "</h3>" +
-          "<p>" + who + "</p><p>" + esc(a.email) + (a.phone ? " &middot; " + esc(a.phone) : "") + "</p>" +
-          (more ? "<p>" + more + "</p>" : "") +
-          "<p>Applied " + esc(a.created_pt) + " &middot; Came from " + esc(label(a.source || "direct")) + "</p>" +
-          '<button class="btn-secondary approve" data-email="' + esc(a.email) + '">' + (a.approved ? "Resend sign-in link" : "Approve and email sign-in link") + "</button></div>";
-      }).join("") || "<p>No applications yet.</p>";
+      $("login").hidden = !!d.ok; $("data").hidden = !d.ok; $("me").hidden = !d.ok;
+      if (!d.ok) return;
+      var pending = d.applications.filter(function (a) { return !a.approved; });
+      $("kPending").textContent = pending.length;
+      $("kPendingTile").classList.toggle("hot", pending.length > 0);
+      $("kApps").textContent = d.totals.applications;
+      $("kCard").textContent = d.totals.from_card_applications;
+      $("kEmail").textContent = d.totals.from_email_applications;
+      $("appCount").textContent = d.applications.length ? d.applications.length : "";
+      // Waiting first, newest first within each group (the API sends newest first).
+      var apps = pending.concat(d.applications.filter(function (a) { return a.approved; }));
+      $("apps").innerHTML = apps.map(applicant).join("") || '<div class="empty">No applications yet.</div>';
+      $("srcRows").innerHTML = d.sources.map(function (s) {
+        return "<tr><td>" + esc(label(s.source)) + '</td><td class="n">' + s.visits + '</td><td class="n">' + s.app_clicks + '</td><td class="n">' + s.applications + "</td></tr>";
+      }).join("") || '<tr><td colspan="4" class="empty">Nothing yet.</td></tr>';
     }).catch(function () { showErr("Network problem."); });
+    fetch("/api/auth/get-session").then(function (r) { return r.json(); }).then(function (s) {
+      $("meEmail").textContent = (s && s.user && s.user.email) || "";
+    }).catch(function () {});
   }
+
   $("apps").addEventListener("click", function (e) {
     var b = e.target.closest("[data-email]"); if (!b) return;
-    b.disabled = true;
+    b.disabled = true; b.textContent = "Sending…";
     post("/api/landing/approve", { email: b.dataset.email }).then(function (r) { return r.json(); }).then(function (d) {
-      if (!d.ok) { b.disabled = false; showErr(d.error || "Could not approve."); return; }
-      b.textContent = "Sign-in link sent"; load();
-    }).catch(function () { b.disabled = false; showErr("Network problem."); });
+      if (!d.ok) { b.disabled = false; b.textContent = "Try again"; showErr(d.error || "Could not approve."); return; }
+      b.textContent = "Sign-in link sent"; setTimeout(load, 1200);
+    }).catch(function () { b.disabled = false; b.textContent = "Try again"; showErr("Network problem."); });
   });
   $("signinForm").addEventListener("submit", function (e) {
     e.preventDefault();
