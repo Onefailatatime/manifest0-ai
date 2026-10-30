@@ -18,7 +18,8 @@
 
   // Static files served from ./public: landing page at / (index.html), the app at /app/, beta admin at /admin/.
   // "/" and "/index.html" go through the Worker first so app.manifest0ai.com/ can serve the app page.
-  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/", "/index.html"] },
+  // Videos too: static assets ignore Range requests, which iPhone Safari needs to play video (src/index.ts, ranged).
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/", "/index.html", "/img/*.mp4"] },
 
   // D1 = Cloudflare's SQL database (SQLite). Tables: see migrations/
   "d1_databases": [

@@ -75,6 +75,31 @@ describe("landing page", () => {
     expect(home).not.toContain('id="signinForm"');
   });
 
+  it("answers byte ranges for the video (iPhone Safari needs them)", async () => {
+    const video = (range?: string) => SELF.fetch("https://manifest0ai.com/img/app-walkthrough.mp4", range ? { headers: { Range: range } } : {});
+    const whole = await video();
+    expect(whole.status).toBe(200);
+    expect(whole.headers.get("Accept-Ranges")).toBe("bytes");
+    const size = (await whole.arrayBuffer()).byteLength;
+
+    const probe = await video("bytes=0-1");                     // Safari's first request
+    expect(probe.status).toBe(206);
+    expect(probe.headers.get("Content-Range")).toBe(`bytes 0-1/${size}`);
+    expect((await probe.arrayBuffer()).byteLength).toBe(2);
+
+    const middle = await video("bytes=100-199");
+    expect(middle.headers.get("Content-Range")).toBe(`bytes 100-199/${size}`);
+    expect((await middle.arrayBuffer()).byteLength).toBe(100);
+
+    const tail = await video(`bytes=${size - 10}-`);
+    expect(tail.headers.get("Content-Range")).toBe(`bytes ${size - 10}-${size - 1}/${size}`);
+    await tail.arrayBuffer();
+
+    const past = await video(`bytes=${size}-`);
+    expect(past.status).toBe(416);
+    expect(past.headers.get("Content-Range")).toBe(`bytes */${size}`);
+  });
+
   it("redirects /join and /beta to the home page, keeping the query", async () => {
     for (const path of ["/join?src=card", "/beta?src=card"]) {
       const res = await SELF.fetch(url(path), { redirect: "manual" });

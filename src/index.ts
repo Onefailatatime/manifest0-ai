@@ -27,6 +27,9 @@ export default {
     if (url.hostname.startsWith("app.") && (pathname === "/" || pathname === "/index.html"))
       return env.ASSETS.fetch(new Request(new URL("/app/" + url.search, url), request));
 
+    // Videos: answer byte-range requests (iPhone Safari won't play a video without them).
+    if ((method === "GET" || method === "HEAD") && /^\/img\/[\w-]+\.mp4$/.test(pathname)) return ranged(request, env);
+
     // Landing page API (beta apply form, ?src=card and ?src=email tracking, admin counts). The page is public/index.html.
     const landing = await handleLanding(request, env, pathname);
     if (landing) return landing;
@@ -76,6 +79,34 @@ export default {
     return error("Not found.", 404);
   },
 } satisfies ExportedHandler<Env>;
+
+/**
+ * A static file with byte-range support. Workers static assets always send the whole file, but Safari asks for
+ * "bytes=0-1" first and won't play a video that doesn't answer with 206 Partial Content. One range only; anything
+ * else gets the whole file, as the HTTP spec allows.
+ */
+async function ranged(request: Request, env: Env) {
+  const asset = await env.ASSETS.fetch(new Request(request.url, { method: "GET" }));
+  if (!asset.ok) return asset;
+  const headers = new Headers(asset.headers);
+  headers.set("Accept-Ranges", "bytes");
+  const m = (request.headers.get("Range") ?? "").match(/^bytes=(\d*)-(\d*)$/);
+  if (!m || (!m[1] && !m[2])) return new Response(request.method === "HEAD" ? null : asset.body, { status: 200, headers });
+
+  const body = await asset.arrayBuffer();
+  const size = body.byteLength;
+  // "bytes=500-" = from 500 to the end; "bytes=-500" = the last 500 bytes.
+  const start = m[1] ? Number(m[1]) : Math.max(0, size - Number(m[2]));
+  const end = m[1] && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+  if (start >= size || start > end) {
+    headers.set("Content-Range", `bytes */${size}`);
+    headers.delete("Content-Length");
+    return new Response(null, { status: 416, headers });
+  }
+  headers.set("Content-Range", `bytes ${start}-${end}/${size}`);
+  headers.set("Content-Length", String(end - start + 1));
+  return new Response(request.method === "HEAD" ? null : body.slice(start, end + 1), { status: 206, headers });
+}
 
 /** Everyone, admins included, opens only their own visits. */
 async function canOpen(env: Env, user: AppUser, visitId: string) {
