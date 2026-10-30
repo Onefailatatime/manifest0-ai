@@ -23,6 +23,16 @@ h1{font-size:clamp(1.5rem,6.6vw,1.75rem);line-height:1.15;font-weight:700;letter
 .phone{margin:14px auto 14px;flex:0 0 auto;height:clamp(200px,calc(100svh - 442px),440px);aspect-ratio:780/1600;
   padding:5px;border-radius:26px;background:#11161B;box-shadow:0 0 0 1px #4A535C,0 10px 30px rgba(0,0,0,.45)}
 .phone video,.phone img{display:block;width:100%;height:100%;object-fit:cover;object-position:top;border-radius:21px;background:#fff}
+.phone{position:relative}
+/* Sound toggle on the phone's corner. The video starts muted; this turns the music on. */
+.sound{position:absolute;right:12px;bottom:12px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
+  background:rgba(17,22,27,.78);border:1px solid rgba(255,255,255,.28);color:#fff;padding:0;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.sound:hover{background:rgba(17,22,27,.92)}
+.sound:focus-visible{outline:2px solid var(--m0-accent);outline-offset:2px}
+.sound svg{width:20px;height:20px;fill:currentColor;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sound svg path+path{fill:none}
+.sound .on,.sound[aria-pressed=true] .off{display:none}
+.sound[aria-pressed=true] .on{display:block}
 
 .apply{margin-top:auto}
 .fields{display:grid;gap:8px}

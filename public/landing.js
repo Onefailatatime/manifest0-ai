@@ -2,6 +2,15 @@
   // The app video: still poster only for people who ask for less motion.
   var video = document.querySelector(".phone video");
   if (video && window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) { video.removeAttribute("autoplay"); video.pause(); }
+  // Sound: browsers only autoplay muted video. The first time sound goes on, start from the top so the music does too.
+  var sound = document.getElementById("sound"), heard = false;
+  if (video && sound) sound.addEventListener("click", function () {
+    video.muted = !video.muted;
+    if (!video.muted && !heard) { heard = true; video.currentTime = 0; }
+    if (!video.muted && video.paused) video.play().catch(function () {});
+    sound.setAttribute("aria-pressed", String(!video.muted));
+    sound.setAttribute("aria-label", video.muted ? "Turn sound on" : "Turn sound off");
+  });
 
   // Traffic source. A tagged link (?src=card from the printed card QR, ?src=email from our emails, or utm_source /
   // utm_campaign) wins and is remembered for 30 days in localStorage, so the tag survives reloads and coming back later
