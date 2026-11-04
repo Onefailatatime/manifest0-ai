@@ -35,6 +35,32 @@ VisitAgent (src/visit-agent.ts) — one per visit, durable queue, one step at a 
 | Report email | Email Service | `env.EMAIL` |
 | AI | Meta Model API, `muse-spark-1.3` | secret `MODEL_API_KEY` |
 
+## How Manifest0-Ai uses Muse Spark
+
+Manifest0-Ai calls Meta's Model API (Responses endpoint, `https://api.meta.ai/v1/responses`) with the model set by `MUSE_MODEL` (default `muse-spark-1.3`). All Muse code is in `src/muse.ts`. It is called from the `VisitAgent` (`src/visit-agent.ts`), one Agents SDK agent per site visit.
+
+Muse Spark does two jobs:
+
+**1. Reading label photos (`extractProducts`)**
+- A rep uploads a batch of photos for one room. All photos in the batch go to Muse in a single vision call.
+- Muse must answer in strict JSON (`json_schema`, `strict: true`) with one entry per distinct product: manufacturer, product name, product code (EPA Reg. No. or UPC), container type, material and size, inner items for packed boxes or drums, physical state, signal word, DOT hazard class, UN number, hazard statements, GHS pictograms, ingredients, quantity, and which photos show it.
+- The prompt tells Muse to merge front and back shots of the same product, count each container once, copy text exactly as printed, and use null instead of guessing.
+- Room memory: products already found in that room are sent with each new batch. Muse sets `matchesProductId` when a new photo shows a product it already saw, so overlapping photos update a product instead of duplicating it.
+
+**2. Finding the Safety Data Sheet (`findSds`)**
+- For each new product, the agent first checks a shared SDS library in D1 (match on manufacturer plus product name, or product code). If it was found on an earlier visit, it is reused with no Muse call.
+- Otherwise Muse runs with Meta's `web_search` tool to find the official SDS PDF, preferring the manufacturer's US site. It returns `pdfUrl`, `pageUrl`, `isSds`, `confidence` and `notes`. Muse is told that ingredient disclosures, spec sheets and labels are not SDSs.
+- Only when `isSds` is true and a PDF URL is given, the agent downloads the PDF, saves it to R2 and adds it to the SDS library. Up to 4 SDS searches run at once.
+
+Muse does not assign EPA waste codes. Container codes come from plain rules in the app code. After the rep taps Finish, the inventory and SDS PDFs are emailed (Resend).
+
+### Next steps
+- Hands-free capture from Ray-Ban Meta glasses, so a rep can photograph labels while walking the site.
+- Voice Transcribe for spoken notes during a site walk.
+- SAM 3.1 for photo understanding, such as separating and counting containers in crowded shelf photos.
+
+Accuracy on our 3 sample products: see [docs/accuracy.md](docs/accuracy.md).
+
 ## Local development
 
 ```bash
@@ -93,3 +119,7 @@ Free plan: 3,000 emails/month, 100/day, up to 40 MB of attachments per email.
 
 Until the domain is verified, Resend only allows sending from `onboarding@resend.dev` to the email address
 the Resend account was created with, which is fine for testing.
+
+## License
+
+License: MIT. See [LICENSE](LICENSE).
