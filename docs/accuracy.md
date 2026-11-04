@@ -10,7 +10,7 @@ Source: live test visits on the deployed app, Oct 30 to Nov 4, 2026, using our 3
 
 **Summary:** 10 of 10 checkable label fields correct across the 3 products. An SDS was found for all 3, and confirmed as the right one for 2.
 
-**All live test visits (Oct 30 to Nov 4):** 25 products from 25 photos. An SDS PDF was found for 18. For 5, only a web page was found. For 3, none was found (unlabeled mixed items such as "assorted aerosols").
+**All live test visits (Oct 30 to Nov 4):** 25 products from 25 photos. An SDS PDF was found for 17. For 5, only a web page was found. For 3, none was found (unlabeled mixed items such as "assorted aerosols").
 
 Notes:
 - "Correct" means it matches the product's published label and SDS.
