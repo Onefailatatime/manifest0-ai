@@ -1,30 +1,52 @@
 # Manifest0 AI
 
-Photograph chemical labels → Muse Spark reads them into an inventory → finds each product's SDS on the web →
-saves the PDFs → emails the inventory + SDS sheets to the technician and the client.
+**Zero guesswork on hazardous waste.** Photograph chemical labels, and Muse Spark reads them into an inventory, finds each product's Safety Data Sheet (SDS) on the web, saves the PDFs and emails the inventory and SDS sheets to the technician and the client.
 
-Cloudflare Worker `manifest0-ai`. Live at https://manifest0-ai.modecandsllc.workers.dev
+Built for Meta's Global AI Dev Hackathon (Indie Dev track, Oct 26 to Nov 4, 2026) on Meta's Muse Spark model (`muse-spark-1.3`).
+
+- **Live app:** https://app.manifest0ai.com (email sign-in link, for approved beta testers)
+- **Landing page:** https://manifest0ai.com
+
+## The problem
+
+Setting up a new hazardous waste customer is manual. A field rep walks the site, writes down every container and photographs the labels. Back at a desk, they search for each product's SDS one at a time and type everything up. That takes hours to days, and every missing detail means another call or visit.
+
+Manifest0 AI does that work during the site walk. The rep snaps each label room by room, and the inventory and SDS sheets are in the client's inbox before the rep leaves. A person reviews the result before it is sent.
+
+**Who it's for:** field reps at small and mid-size US environmental and hazardous waste service companies.
+
+## Try it
+
+- **Live:** sign in at https://app.manifest0ai.com, start a site walk, add photos room by room, then tap **Send to client**.
+- **Locally:** follow [Local development](#local-development) below and upload the label photos in [`samples/`](samples/) (Clorox bleach, cleaning vinegar and STERIS Septihol, front and back of each).
+
+## Team
+
+- **Jessyka Mathews** ([@Onefailatatime](https://github.com/Onefailatatime)), founder. Product, UI design and hazardous waste domain knowledge.
+- **Tamara Martinović** ([@Tamara-Codes](https://github.com/Tamara-Codes)), CTO. Built the app: the Worker, the visit agent, the Muse Spark calls and the tests.
+
+Most of the code was written with Claude Code as the coding assistant. The only Meta model in the app is Muse Spark, used for reading labels and finding SDS sheets.
 
 ## How it works
 
-A technician starts a **site visit**, then uploads photos room by room (as many uploads as they like),
-then taps **Finish**. One `VisitAgent` (Agents SDK) lives for the whole visit and remembers everything in it.
+A technician starts a **site walk** (one visit), then uploads photos room by room (as many uploads as they like),
+then reviews the email draft and taps **Send to client**. One `VisitAgent` (Agents SDK) lives for the whole visit and remembers everything in it.
 
 ```
 Browser (public/index.html)
    │  POST /api/visits                 start a visit (emails, site name)
    │  POST /api/visits/:id/photos      a batch of photos + room name   (repeat)
-   │  POST /api/visits/:id/finish      done → email
+   │  POST /api/visits/:id/finish      Send to client → email
    ▼
 Worker (src/index.ts) ── saves photos to R2, rows to D1, hands work to the visit's agent
    │
    ▼
-VisitAgent (src/visit-agent.ts) — one per visit, durable queue, one step at a time:
+VisitAgent (src/visit-agent.ts): one per visit, durable queue, one step at a time:
    processBatch  Muse reads the new photos AND the products already found in that room,
                  so overlapping photos update a product instead of duplicating it
    findSds       SDS library first (shared across all visits); else Muse web search →
                  download PDF → R2 → add to library
-   sendReport    after Finish (and after pending work): inventory + SDS PDFs via Cloudflare Email
+   sendReport    after Send to client (and after pending work): inventory + SDS PDFs via Resend
 ```
 
 | Piece | Cloudflare product | Binding |
@@ -32,7 +54,7 @@ VisitAgent (src/visit-agent.ts) — one per visit, durable queue, one step at a 
 | Database (`visits`, `photos`, `products`, `sds_library`) | D1 | `env.DB` |
 | Label photos, SDS PDFs | R2 | `env.FILES` |
 | Per-visit memory + background work | Agents SDK (Durable Object) | `env.VisitAgent` |
-| Report email | Email Service | `env.EMAIL` |
+| Report email | Resend (not a Cloudflare product) | secret `RESEND_API_KEY`, sender `vars.EMAIL_FROM` |
 | AI | Meta Model API, `muse-spark-1.3` | secret `MODEL_API_KEY` |
 
 ## How Manifest0-Ai uses Muse Spark
@@ -52,7 +74,7 @@ Muse Spark does two jobs:
 - Otherwise Muse runs with Meta's `web_search` tool to find the official SDS PDF, preferring the manufacturer's US site. It returns `pdfUrl`, `pageUrl`, `isSds`, `confidence` and `notes`. Muse is told that ingredient disclosures, spec sheets and labels are not SDSs.
 - Only when `isSds` is true and a PDF URL is given, the agent downloads the PDF, saves it to R2 and adds it to the SDS library. Up to 4 SDS searches run at once.
 
-Muse does not assign EPA waste codes. Container codes come from plain rules in the app code. After the rep taps Finish, the inventory and SDS PDFs are emailed (Resend).
+Muse does not assign EPA waste codes. Container codes come from plain rules in the app code. After the rep taps Send to client, the inventory and SDS PDFs are emailed (Resend).
 
 ### Next steps
 - Hands-free capture from Ray-Ban Meta glasses, so a rep can photograph labels while walking the site.
@@ -94,7 +116,6 @@ npx wrangler secret put RESEND_API_KEY
 ```
 
 Set the Workers Builds deploy command to `npm run deploy`: it applies D1 migrations, then deploys.
-A step-by-step dashboard version (no terminal) is in the "Manifest Zero: Setup for Jessica" doc.
 
 After that, pushes to `main` deploy automatically (Workers Builds).
 
@@ -119,6 +140,12 @@ Free plan: 3,000 emails/month, 100/day, up to 40 MB of attachments per email.
 
 Until the domain is verified, Resend only allows sending from `onboarding@resend.dev` to the email address
 the Resend account was created with, which is fine for testing.
+
+## Known limits
+
+- This repo is the hackathon prototype. Its API has no user accounts: walks are listed by work email. The live app adds an email sign-in link for approved beta testers. If you run your own copy, use test data only.
+- Muse Spark reads only what the photos show. Quantities and unlabeled waste still need a person to check them.
+- Ray-Ban Meta glasses, Voice Transcribe and SAM 3.1 are next steps (see above), not part of this build.
 
 ## License
 
