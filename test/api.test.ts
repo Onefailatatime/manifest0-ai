@@ -11,6 +11,24 @@ const createVisit = (body?: Record<string, unknown>) => create(call, body);
 const getVisit = async (id: string) => (await (await call(`/api/visits/${id}`)).json()) as any;
 const patch = (id: string, body: unknown) => call(`/api/products/${id}`, { method: "PATCH", ...json(body) });
 
+describe("retrying a photo upload", () => {
+  it("does not save a batch twice when the app resends it after a lost reply", async () => {
+    const { json: out } = await createVisit();
+    const batch = crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO photos (id, visit_id, batch_id, room, r2_key) VALUES (?, ?, ?, 'Warehouse', 'k')")
+      .bind(crypto.randomUUID(), out.visitId, batch).run();
+    const fd = new FormData();
+    fd.append("room", "Warehouse");
+    fd.append("batch", batch);
+    fd.append("images", new File([new Uint8Array(10)], "a.jpg", { type: "image/jpeg" }));
+    const res = await call(`/api/visits/${out.visitId}/photos`, { method: "POST", body: fd });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ batchId: batch, duplicate: true });
+    const { n } = (await env.DB.prepare("SELECT COUNT(*) n FROM photos WHERE visit_id = ?").bind(out.visitId).first()) as any;
+    expect(n).toBe(1);
+  });
+});
+
 describe("starting a walk", () => {
   it("creates a walk with the technician first, the client after, and the name and company from the account", async () => {
     const { res, json: out } = await createVisit();

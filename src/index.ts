@@ -177,7 +177,14 @@ async function addPhotos(request: Request, env: Env, visitId: string) {
   if (images.length === 0 || images.length > MAX_IMAGES) return error(`Add 1–${MAX_IMAGES} photos.`);
   if (images.some((f) => !f.type.startsWith("image/") || f.size > MAX_IMAGE_BYTES)) return error("Photos must be images under 10 MB.");
 
-  const batchId = crypto.randomUUID();
+  // The app names each upload and reuses the name when it retries. If a reply got lost on a bad signal but the photos
+  // are already here, say "done" instead of saving them twice.
+  const sent = String(form.get("batch") ?? "");
+  const batchId = /^[0-9a-f-]{36}$/i.test(sent) ? sent : crypto.randomUUID();
+  if (batchId === sent) {
+    const seen = await env.DB.prepare("SELECT 1 FROM photos WHERE batch_id = ? AND visit_id = ? LIMIT 1").bind(batchId, visitId).first();
+    if (seen) return Response.json({ batchId, duplicate: true });
+  }
   const insert = env.DB.prepare("INSERT INTO photos (id, visit_id, batch_id, room, r2_key) VALUES (?, ?, ?, ?, ?)");
   const rows = await Promise.all(images.map(async (file, i) => {
     const id = crypto.randomUUID();
