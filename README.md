@@ -33,7 +33,7 @@ A technician starts a **site walk** (one visit), then uploads photos room by roo
 then reviews the email draft and taps **Send to client**. One `VisitAgent` (Agents SDK) lives for the whole visit and remembers everything in it.
 
 ```
-Browser (public/index.html)
+Browser (public/app/index.html, the app at app.manifest0ai.com and /app/)
    │  POST /api/visits                 start a visit (emails, site name)
    │  POST /api/visits/:id/photos      a batch of photos + room name   (repeat)
    │  POST /api/visits/:id/finish      Send to client → email
@@ -140,6 +140,37 @@ Free plan: 3,000 emails/month, 100/day, up to 40 MB of attachments per email.
 
 Until the domain is verified, Resend only allows sending from `onboarding@resend.dev` to the email address
 the Resend account was created with, which is fine for testing.
+
+## Landing page (manifest0ai.com/)
+
+`manifest0ai.com/` is the beta landing page (`public/index.html`, `landing.css`, `landing.js`). The app is at
+`app.manifest0ai.com` (its home page serves `public/app/`) and also at `/app/` on any host.
+- One screen: logo, headline, one line, a ~30 s looping screen recording of the real app (`public/img/app-walkthrough.mp4`,
+  H.264 + AAC) and the apply form. The recording is a demo walk on a local copy: a label photo is snapped (staged camera
+  shot) and read (staged server answers, so no AI call; the app screens are real), then that product's
+  hazards, and the email reviewed, edited and approved (to the client, a copy to the technician), shown on a phone on a dark stage that the camera pushes in on, with narration (ElevenLabs, voice "Bella"), swoosh and tap sounds and generated music (Google Lyria). It plays muted;
+  the speaker button on the phone turns the sound on. The poster `app-screen.webp` / `.png` is its first frame, and
+  people who prefer reduced motion see only the poster. Desktop adds three short points. Dark only (B7), whatever
+  the device setting. The app itself still follows the device (light B1, dark B7).
+- Apply form asks for work email and company only: `POST /api/landing/apply` saves to `beta_applications`
+  (migration `0007_landing.sql`) and emails a "you're on the list" confirmation (once per email).
+- Traffic source: card QR `https://manifest0ai.com/?src=card`, email links `?src=email`. The tag is saved for 30 days
+  on the device, sent with the form, and each tagged visit is counted (`landing_events`). `/join` and `/beta` redirect
+  to `/` and keep the query. Old report links (`/?visit=ID`) forward to `/app/?visit=ID`.
+- Admin: `/admin/` (sign in with an admin email) shows applications, From card and From email counts and a CSV.
+  **Approve** lets that applicant sign in to the app and emails them a sign-in link.
+
+## Sign-in
+
+Technicians sign in with a link emailed to them (Better Auth, `src/auth.ts`, tables in `0008_auth.sql`). No passwords.
+- Only approved applicants (Approve on `/admin/`), people who already have an account, and `ADMIN_EMAILS` can sign in.
+  Anyone else sees the same "check your inbox" message but gets no email.
+- Every `/api/visits*`, `/api/products*` and `/api/files/visits/*` request needs a session, and each technician only
+  reaches their own walks (admins too: being admin only opens `/admin/`). SDS PDFs (`/api/files/sds/*`) stay public because client emails link to them.
+- Walks made before sign-in existed are linked by email the first time that technician signs in.
+- Secrets, set once: `npx wrangler secret put BETTER_AUTH_SECRET` (a long random string) and
+  `npx wrangler secret put ADMIN_EMAILS` (comma-separated admin emails). Locally they go in `.dev.vars`.
+- Without `RESEND_API_KEY`, sign-in links are written to the log (`wrangler dev` output) instead of emailed.
 
 ## Known limits
 

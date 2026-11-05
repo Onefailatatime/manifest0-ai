@@ -5,5 +5,6 @@ import { beforeEach } from "vitest";
 await applyD1Migrations(env.DB, env.TEST_MIGRATIONS ?? []);
 
 beforeEach(async () => {
-  await env.DB.batch(["photos", "products", "visits", "sds_library"].map((t) => env.DB.prepare(`DELETE FROM ${t}`)));
+  await env.DB.batch(["photos", "products", "visits", "sds_library", "beta_applications", "landing_events",
+    "session", "account", "verification", "rateLimit", "user"].map((t) => env.DB.prepare(`DELETE FROM "${t}"`)));
 });

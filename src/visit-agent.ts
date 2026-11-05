@@ -240,14 +240,13 @@ export class VisitAgent extends Agent<Env, VisitState> {
         });
       }
 
-      const visitUrl = `${this.state.appUrl}/?visit=${this.visitId}`;
       const to = recipientsOf(visit);
       const draft = defaultEmail(visit, products);
       const subject = visit.email_subject || draft.subject;
       const message = visit.email_message ?? draft.message;
-      // The email is the technician's message; the report itself is the attached PDF.
-      const html = messageHtml(message) +
-        `<p style="font-family:system-ui,sans-serif;font-size:12px;color:#5a6372">Sent with Manifest0 AI · <a href="${esc(visitUrl)}">View the inventory online</a></p>`;
+      // The email is the technician's message in a branded frame; the report itself is the attached PDF.
+      // No link to the walk: the app needs sign-in and clients don't have accounts.
+      const html = emailHtml(visit, products, message, attachedKeys, this.state.appUrl);
 
       if (!this.env.RESEND_API_KEY) {
         // No email provider configured (e.g. local dev): keep the report so it can be opened in the browser.
@@ -267,7 +266,7 @@ export class VisitAgent extends Agent<Env, VisitState> {
           reply_to: visit.user_email,
           subject,
           html,
-          text: `${message}\n\nView the inventory online: ${visitUrl}`,
+          text: message,
           attachments,
         }),
       });
@@ -358,77 +357,107 @@ const safeFilename = (s: string) => s.replace(/[^\w\s.&()-]/g, "").slice(0, 80).
 export const esc = (s: unknown) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-export function reportHtml(visit: VisitRow, products: ProductRow[], attached: Set<string>, appUrl: string, visitUrl: string) {
-  // Email-safe: tables and inline styles only. Grouped by room, one row per product.
-  const td = "padding:10px 8px;border-bottom:1px solid #e3e6ea;vertical-align:top;font-size:13px";
-  const muted = "color:#5a6372;font-size:12px";
-  const rooms = [...new Set(products.map((p) => p.room))];
-  let n = 0;
-  const body = rooms.map((room) => {
-    const rows = products.filter((p) => p.room === room).map((p) => {
-      n++;
-      const m = manifestCode(p.container_type, p.container_material);
-      const sds =
-        p.sds_key && attached.has(p.sds_key) ? `<span style="color:#194a25">&#10003; Attached</span>`
-        : p.sds_key ? `<a href="${esc(`${appUrl}/api/files/${p.sds_key}`)}" style="color:#1c5fe4">Download</a>`
-        : p.sds_page_url || p.sds_url ? `<a href="${esc(p.sds_page_url ?? p.sds_url)}" style="color:#1c5fe4">Maker's page</a>`
-        : `<span style="color:#b42318">Not found</span>`;
-      const size = [p.container_size?.split(/[(\n]/)[0].trim(), contentsText(p)].filter(Boolean).join(" · ");
-      return `<tr>
-        <td style="${td};${muted};width:22px">${n}</td>
-        <td style="${td}"><b>${esc(p.product_name)}</b>${p.manufacturer ? `<br><span style="${muted}">${esc(p.manufacturer)}</span>` : ""}${
-          p.product_code ? `<br><span style="${muted}">${esc(p.product_code)}</span>` : ""}</td>
-        <td style="${td}">${p.quantity} × ${esc(p.container_type === "other" ? "container" : p.container_type)}${size ? `<br><span style="${muted}">${esc(size)}</span>` : ""}${
-          p.count_note ? `<br><span style="${muted}"><i>${esc(p.count_note)}</i></span>` : ""}</td>
-        <td style="${td};white-space:nowrap">${m.code ? `<b>${p.quantity} ${m.code}</b>` : `<span style="${muted}">Lab pack</span>`}</td>
-        <td style="${td}">${p.hazard_class ? esc(p.hazard_class) : `<span style="${muted}">–</span>`}${p.un_number ? `<br><span style="${muted}">${esc(p.un_number)}</span>` : ""}${
-          p.signal_word && p.signal_word !== "none" ? `<br><span style="font-size:11px;font-weight:700;color:${p.signal_word === "DANGER" ? "#b42318" : "#8a4b00"}">${esc(p.signal_word)}</span>` : ""}</td>
-        <td style="${td};white-space:nowrap">${sds}</td>
-      </tr>`;
-    }).join("");
-    return `<tr><td colspan="6" style="padding:16px 8px 6px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5a6372;border-bottom:2px solid #041d3e">${esc(room)}</td></tr>${rows}`;
-  }).join("");
+/** The email body: brand header, a summary, the technician's message, then what's attached and what isn't.
+ * Email-safe: tables and inline styles only, no images (often blocked) and no CSS gradients (Gmail drops them). */
+export function emailHtml(visit: VisitRow, products: ProductRow[], message: string, attached: Set<string>, appUrl: string) {
+  const font = "font-family:Inter,'Segoe UI',system-ui,-apple-system,sans-serif";
+  const muted = "color:#5a6372;font-size:13px";
+  const link = "color:#1c5fe4";
+  const rooms = new Set(products.map((p) => p.room)).size;
   const withSds = products.filter((p) => p.sds_key).length;
+  const sdsFiles = new Set(products.map((p) => p.sds_key).filter((k) => k && attached.has(k))).size;
+  const from = [visit.prepared_by, visit.company].filter(Boolean).join(", ") || visit.user_email;
+  const site = visit.site_name ? ` – ${esc(visit.site_name)}` : "";
+
   const stat = (v: string | number, label: string) =>
-    `<td style="padding:10px 14px;background:#f5f6f8;border-radius:8px"><div style="font-size:20px;font-weight:700;color:#041d3e">${v}</div><div style="${muted}">${label}</div></td>`;
-  const th = "padding:8px;text-align:left;font-size:11px;font-weight:600;color:#5a6372;text-transform:uppercase;letter-spacing:.04em";
-  return `<div style="font-family:Inter,Segoe UI,system-ui,sans-serif;color:#0f151f;max-width:760px">
-    <div style="background:#041d3e;color:#fff;padding:16px 18px;border-radius:12px 12px 0 0">
-      <div style="font-size:13px;font-weight:600">Manifest0 <span style="color:#f3bf2b">AI</span></div>
-      <div style="font-size:20px;font-weight:700;margin-top:6px">Chemical inventory${visit.site_name ? ` – ${esc(visit.site_name)}` : ""}</div>
-      <div style="font-size:12px;opacity:.75;margin-top:4px">Prepared by ${esc(visit.user_email)} · ${esc(visit.created_at.slice(0, 10))}</div>
+    `<td style="padding:10px 10px;background:#f5f6f8;border-radius:8px;width:25%"><div style="font-size:20px;font-weight:700;color:#041d3e">${v}</div><div style="${muted}">${label}</div></td>`;
+  const item = (name: string, note: string) =>
+    `<tr><td style="padding:6px 0;font-size:14px;vertical-align:top;width:22px;color:#194a25">&#10003;</td><td style="padding:6px 0;font-size:14px"><b>${name}</b><br><span style="${muted}">${note}</span></td></tr>`;
+
+  // SDS we have but couldn't attach (size limit): a public download link. None found: the maker's page if we know it.
+  const tooBig = products.filter((p) => p.sds_key && !attached.has(p.sds_key));
+  const missing = products.filter((p) => !p.sds_key);
+  const notes = [
+    ...tooBig.map((p) => `${esc(p.product_name)}: <a href="${esc(`${appUrl}/api/files/${p.sds_key}`)}" style="${link}">download SDS</a> (too large to attach)`),
+    ...missing.map((p) => {
+      const page = p.sds_page_url ?? p.sds_url;
+      return `${esc(p.product_name)}: no SDS found online${page ? ` – <a href="${esc(page)}" style="${link}">manufacturer's page</a>` : ""}`;
+    }),
+  ];
+
+  return `<div style="background:#f5f6f8;padding:24px 12px;${font}">
+  <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #d9dce1;color:#0f151f">
+    <div style="background:#041d3e;color:#ffffff;padding:20px 24px">
+      <div style="font-size:14px;font-weight:700">Manifest0 <span style="color:#f3bf2b">AI</span></div>
+      <div style="font-size:22px;font-weight:700;margin-top:10px">Chemical inventory${site}</div>
+      <div style="font-size:13px;color:#c9d3e3;margin-top:4px">Prepared by ${esc(from)} · ${esc(visit.created_at.slice(0, 10))}</div>
     </div>
-    <div style="height:6px;background:repeating-linear-gradient(-45deg,#f3bf2b 0 8px,#041d3e 8px 16px)"></div>
-    <table cellspacing="8" cellpadding="0" style="margin:8px -8px"><tr>
-      ${stat(products.length, "products")}${stat(rooms.length, rooms.length === 1 ? "room" : "rooms")}${stat(products.reduce((a, p) => a + p.quantity, 0), "containers")}${stat(`${withSds}/${products.length}`, "SDS found")}
-    </tr></table>
-    <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%">
-      <tr><th style="${th}">#</th><th style="${th}">Product</th><th style="${th}">Containers</th><th style="${th}">EPA code</th><th style="${th}">DOT hazard</th><th style="${th}">SDS</th></tr>
-      ${body}
-    </table>
-    <p style="${muted};margin-top:16px">Product data was read from label photos by AI and checked by the technician. Verify against the attached SDS before disposal.
-    <a href="${esc(visitUrl)}" style="color:#1c5fe4">View online</a></p>
-  </div>`;
+    <div style="height:5px;background:#f3bf2b;line-height:5px;font-size:0">&nbsp;</div>
+    <div style="padding:14px 18px 4px">
+      <table cellspacing="6" cellpadding="0" style="width:100%"><tr>
+        ${stat(products.length, products.length === 1 ? "product" : "products")}${stat(rooms, rooms === 1 ? "room" : "rooms")}${stat(products.reduce((a, p) => a + p.quantity, 0), "containers")}${stat(`${withSds}/${products.length}`, "SDS found")}
+      </tr></table>
+    </div>
+    <div style="padding:8px 24px 0">${messageHtml(message)}</div>
+    <div style="margin:0 24px;padding:14px 16px;border:1px solid #d9dce1;border-radius:8px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5a6372;margin-bottom:4px">Attached</div>
+      <table cellspacing="0" cellpadding="0" style="width:100%">
+        ${item("Inventory report (PDF)", "Every product by room, with container counts, EPA manifest codes and DOT hazard classes.")}
+        ${item("Inventory spreadsheet (CSV)", "The same inventory, ready for Excel or Google Sheets.")}
+        ${sdsFiles ? item(`Safety Data Sheets (${sdsFiles} PDF${sdsFiles === 1 ? "" : "s"})`, "One per product, as published by the manufacturer.") : ""}
+      </table>
+      ${notes.length ? `<div style="margin-top:10px;padding:10px 12px;background:#fdf0d5;border-radius:6px;font-size:13px;color:#8a4b00">
+        <b>Not attached</b><br>${notes.join("<br>")}</div>` : ""}
+    </div>
+    <div style="padding:20px 24px 24px;${muted}">
+      Reply to this email to reach ${esc(visit.prepared_by || visit.user_email)}.<br>
+      Product data was read from label photos by AI and checked by the technician. Verify against the SDS before disposal.
+    </div>
+  </div>
+  <div style="text-align:center;font-size:12px;color:#5a6372;margin-top:14px">Sent with <a href="https://manifest0ai.com" style="color:#5a6372">Manifest0 AI</a></div>
+</div>`;
 }
 
 /** The email the technician sees on the review screen before sending; they can edit both. */
 export function defaultEmail(visit: VisitRow, products: ProductRow[]) {
   const site = visit.site_name ?? "the site";
   const rooms = new Set(products.map((p) => p.room)).size;
-  const withSds = products.filter((p) => p.sds_key).length;
+  const missing = products.filter((p) => !p.sds_key).map((p) => p.product_name);
+  const withSds = products.length - missing.length;
+  const sdsLine =
+    !products.length ? ""
+    : !withSds ? ` We couldn't find Safety Data Sheets online for these products; the report marks them.`
+    : withSds === 1 && products.length === 1 ? ` and the Safety Data Sheet.`
+    : ` and the Safety Data Sheets for ${withSds === products.length ? `all ${withSds}` : `${withSds} of ${products.length}`} products.` +
+      (missing.length ? ` We couldn't find one online for ${listOf(missing)}; the report marks ${missing.length === 1 ? "it" : "them"}.` : "");
   return {
-    subject: `Chemical inventory – ${site} (${products.length} products)`,
+    subject: `Chemical inventory – ${site} (${plural(products.length, "product")})`,
     message:
       `Hello,\n\n` +
-      `Here is the chemical inventory for ${site}: ${products.length} products in ${rooms} room${rooms === 1 ? "" : "s"}. ` +
-      `The Safety Data Sheets (${withSds} of ${products.length}) and a spreadsheet of the inventory are attached.\n\n` +
-      `Best regards,\n${[visit.prepared_by ?? visit.user_email, visit.company].filter(Boolean).join("\n")}`,
+      `Here is the chemical inventory for ${site}: ${plural(products.length, "product")} in ${plural(rooms, "room")}.\n\n` +
+      `Attached are the inventory report (PDF), a spreadsheet you can open in Excel` +
+      (sdsLine.startsWith(" and") ? sdsLine : `.${sdsLine}`) + `\n\n` +
+      `Best regards,\n${signature(visit)}`,
   };
 }
 
+/** Name and company; just the email when the technician set neither. */
+const signature = (v: VisitRow) => [v.prepared_by, v.company].filter(Boolean).join("\n") || v.user_email;
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** "A", "A and B", "A, B and C", "A, B, C and 4 more" */
+const listOf = (names: string[]) => {
+  const shown = names.slice(0, 3);
+  const more = names.length - shown.length;
+  const head = more ? shown : shown.slice(0, -1);
+  const tail = more ? `${more} more` : shown.at(-1)!;
+  return head.length ? `${head.join(", ")} and ${tail}` : tail;
+};
+
 /** The technician's message as HTML, above the inventory table. */
 export const messageHtml = (text: string) =>
-  `<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5;margin-bottom:24px">${
+  `<div style="font-size:15px;line-height:1.55;margin-bottom:20px">${
     text.trim().split(/\n{2,}/).map((para) => `<p>${esc(para).replace(/\n/g, "<br>")}</p>`).join("")}</div>`;
 
 /** The inventory as CSV (opens in Excel / Google Sheets). */

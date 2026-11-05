@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Manifest0 AI | Beta admin</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/tokens.css">
+<!-- Self-contained: only the shared tokens, so landing page changes can't break this page. -->
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:var(--m0-bg);color:var(--m0-text);font:var(--m0-fs-body)/var(--m0-lh-body) var(--m0-font-sans);-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--m0-focus);outline-offset:2px}
+[hidden]{display:none!important}
+
+.bar{border-bottom:1px solid var(--m0-border);background:var(--m0-surface-2)}
+.bar-in,.page{max-width:1040px;margin:0 auto;padding:0 var(--m0-gutter)}
+.bar-in{display:flex;align-items:center;gap:var(--m0-space-3);height:64px}
+.bar img{height:28px;width:auto;display:block}
+.bar .tag{font-size:var(--m0-fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--m0-text-muted);border-left:1px solid var(--m0-border);padding-left:var(--m0-space-3)}
+.bar .me{margin-left:auto;display:flex;align-items:center;gap:var(--m0-space-3);font-size:var(--m0-fs-sm);color:var(--m0-text-2);min-width:0}
+.bar .me span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.page{padding-top:var(--m0-space-8);padding-bottom:var(--m0-space-12)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 var(--m0-space-4);border-radius:var(--m0-radius-md);border:1px solid transparent;font-size:var(--m0-fs-sm);font-weight:600;white-space:nowrap;transition:background var(--m0-motion),border-color var(--m0-motion)}
+.btn-primary{background:var(--m0-primary);color:var(--m0-on-primary)}
+.btn-primary:hover{background:var(--m0-primary-hover)}
+.btn-quiet{background:transparent;color:var(--m0-text);border-color:var(--m0-border-strong)}
+.btn-quiet:hover{background:var(--m0-surface-2)}
+.btn:disabled{opacity:.6;cursor:default}
+.btn-lg{height:var(--m0-btn-h);width:100%;font-size:var(--m0-fs-body)}
+
+h1{font-size:var(--m0-fs-h1);line-height:var(--m0-lh-h1);margin:0}
+h2{font-size:var(--m0-fs-h3);line-height:var(--m0-lh-h3);margin:0}
+.sub{color:var(--m0-text-2);font-size:var(--m0-fs-sm);margin:4px 0 0}
+
+.alert{display:none;margin-bottom:var(--m0-space-4);padding:var(--m0-space-3) var(--m0-space-4);border-radius:var(--m0-radius-md);background:var(--m0-error-bg);color:var(--m0-error);font-size:var(--m0-fs-sm)}
+.alert.show{display:block}
+
+/* Sign-in */
+.login{max-width:400px;margin:var(--m0-space-12) auto 0;background:var(--m0-surface);border:1px solid var(--m0-border);border-radius:var(--m0-radius-lg);padding:var(--m0-space-8) var(--m0-space-6);box-shadow:var(--m0-shadow-2)}
+.login h1{margin-bottom:4px}
+.login form{margin-top:var(--m0-space-6)}
+.login label{display:block;font-size:var(--m0-fs-sm);font-weight:600;margin-bottom:6px}
+.login input{width:100%;height:var(--m0-input-h);padding:0 var(--m0-space-4);border-radius:var(--m0-radius-md);border:1px solid var(--m0-border-strong);background:var(--m0-surface-2);color:var(--m0-text);font:inherit;margin-bottom:var(--m0-space-4)}
+.sent{margin-top:var(--m0-space-6);padding:var(--m0-space-4);border-radius:var(--m0-radius-md);background:var(--m0-success-bg);color:var(--m0-success);font-size:var(--m0-fs-sm)}
+
+/* Dashboard */
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--m0-space-4);flex-wrap:wrap;margin-bottom:var(--m0-space-6)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--m0-space-3);margin-bottom:var(--m0-space-8)}
+.kpi{background:var(--m0-surface);border:1px solid var(--m0-border);border-radius:var(--m0-radius-lg);padding:var(--m0-space-4) var(--m0-space-5)}
+.kpi b{display:block;font-size:2rem;line-height:1.1;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi span{display:block;margin-top:6px;font-size:var(--m0-fs-sm);color:var(--m0-text-2)}
+.kpi.hot{border-color:var(--m0-accent)}
+.kpi.hot b{color:var(--m0-accent)}
+
+.panel{background:var(--m0-surface);border:1px solid var(--m0-border);border-radius:var(--m0-radius-lg);margin-bottom:var(--m0-space-6);overflow:hidden}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:var(--m0-space-3);padding:var(--m0-space-4) var(--m0-space-5);border-bottom:1px solid var(--m0-border)}
+.panel-head .count{color:var(--m0-text-muted);font-weight:500;margin-left:6px}
+
+.app{display:grid;grid-template-columns:40px 1fr auto;gap:var(--m0-space-4);align-items:center;padding:var(--m0-space-4) var(--m0-space-5);border-bottom:1px solid var(--m0-border)}
+.app:last-child{border-bottom:0}
+.avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--m0-surface-2);color:var(--m0-text-2);font-weight:700;text-transform:uppercase}
+.app.pending .avatar{background:var(--m0-accent);color:var(--m0-on-accent)}
+.who{min-width:0}
+.who .name{display:flex;align-items:center;gap:var(--m0-space-2);flex-wrap:wrap;font-weight:600;overflow-wrap:anywhere}
+.who .line{color:var(--m0-text-2);font-size:var(--m0-fs-sm);overflow-wrap:anywhere}
+.who .meta{color:var(--m0-text-muted);font-size:var(--m0-fs-xs);margin-top:2px}
+.pill{font-size:var(--m0-fs-xs);font-weight:600;border-radius:var(--m0-radius-pill);padding:2px 8px;line-height:1.5}
+.pill.wait{background:var(--m0-warning-bg);color:var(--m0-warning)}
+.pill.ok{background:var(--m0-success-bg);color:var(--m0-success)}
+.pill.src{background:var(--m0-surface-2);color:var(--m0-text-2)}
+.empty{padding:var(--m0-space-8) var(--m0-space-5);text-align:center;color:var(--m0-text-muted);font-size:var(--m0-fs-sm)}
+
+table{width:100%;border-collapse:collapse;font-size:var(--m0-fs-sm)}
+th,td{text-align:left;padding:var(--m0-space-3) var(--m0-space-5);border-bottom:1px solid var(--m0-border)}
+th{color:var(--m0-text-muted);font-size:var(--m0-fs-xs);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+
+@media (max-width:720px){
+  .kpis{grid-template-columns:1fr 1fr}
+  .app{grid-template-columns:40px 1fr;align-items:start}
+  .app .btn{grid-column:2;justify-self:start}
+  .bar .tag,.bar .me span{display:none}
+  th,td{padding-left:var(--m0-space-3);padding-right:var(--m0-space-3)}
+}
+</style>
+</head>
+<body>
+<header class="bar"><div class="bar-in">
+  <a href="/" aria-label="Manifest0 AI home"><img src="/logo/lockup-white-on-dark.svg" alt="Manifest0 AI" width="126" height="28"></a>
+  <span class="tag">Beta admin</span>
+  <div class="me" id="me" hidden><span id="meEmail"></span><button class="btn btn-quiet" id="lock">Sign out</button></div>
+</div></header>
+
+<main class="page">
+  <div class="alert" id="err" role="alert"></div>
+
+  <section class="login" id="login" hidden>
+    <h1>Beta admin</h1>
+    <p class="sub">Sign in with an admin email. We'll send you a link.</p>
+    <form id="signinForm">
+      <label for="email">Admin email</label>
+      <input id="email" type="email" autocomplete="email" placeholder="you@company.com" required>
+      <button class="btn btn-primary btn-lg" type="submit">Email me a sign-in link</button>
+    </form>
+    <p class="sent" id="sent" hidden>Check your inbox for the sign-in link. It works once, for 15 minutes.</p>
+  </section>
+
+  <section id="data" hidden>
+    <div class="head">
+      <div><h1>Beta applications</h1><p class="sub">Approve someone to email them a sign-in link.</p></div>
+      <button class="btn btn-quiet" id="csv">Download CSV</button>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi hot" id="kPendingTile"><b id="kPending">0</b><span>Waiting for approval</span></div>
+      <div class="kpi"><b id="kApps">0</b><span>Applications</span></div>
+      <div class="kpi"><b id="kCard">0</b><span>Applied from card</span></div>
+      <div class="kpi"><b id="kEmail">0</b><span>Applied from email</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Applicants<span class="count" id="appCount"></span></h2></div>
+      <div id="apps"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Where people came from</h2></div>
+      <table><thead><tr><th>Source</th><th class="n">Visits</th><th class="n">App taps</th><th class="n">Applied</th></tr></thead><tbody id="srcRows"></tbody></table>
+    </div>
+  </section>
+</main>
+<script src="/admin/admin.js" defer></script>
+</body>
+</html>

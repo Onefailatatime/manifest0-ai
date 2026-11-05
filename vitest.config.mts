@@ -8,8 +8,9 @@ export default defineConfig(async () => {
     plugins: [
       cloudflareTest({
         wrangler: { configPath: "./wrangler.jsonc" },
-        // No real keys in tests: Muse is never called, and without a Resend key reports are saved to R2 instead of emailed.
-        miniflare: { bindings: { TEST_MIGRATIONS: migrations, MODEL_API_KEY: "test", RESEND_API_KEY: "" } },
+        // No real keys in tests: Muse is never called, and without a Resend key reports are saved to R2 and sign-in links are logged.
+        miniflare: { bindings: { TEST_MIGRATIONS: migrations, MODEL_API_KEY: "test", RESEND_API_KEY: "",
+          BETTER_AUTH_SECRET: "test-secret-test-secret-test-secret-123", ADMIN_EMAILS: "admin@example.com" } },
       }),
     ],
     test: { setupFiles: ["./test/apply-migrations.ts"] },

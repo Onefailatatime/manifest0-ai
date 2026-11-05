@@ -4,16 +4,22 @@
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // wrangler dev would otherwise present local requests as manifest0ai.com, and sign-in would refuse them (src/auth.ts).
+  "dev": { "host": "localhost:8787" },
 
-  // The app owns the domain. manifest0ai.com/join* is a route on the manifest0-beta Worker (the beta landing page);
-  // routes run before custom domains, so /join goes there and everything else comes here.
+  // manifest0ai.com (and www) = beta landing page at / with the apply form. app.manifest0ai.com = the app.
+  // /join and /beta redirect to / here (src/index.ts). If manifest0ai.com/join* is still a route on the
+  // manifest0-beta Worker, remove it: routes run before custom domains.
   "routes": [
     { "pattern": "manifest0ai.com", "custom_domain": true },
-    { "pattern": "www.manifest0ai.com", "custom_domain": true }
+    { "pattern": "www.manifest0ai.com", "custom_domain": true },
+    { "pattern": "app.manifest0ai.com", "custom_domain": true }
   ],
 
-  // Static files (the upload page) served from ./public
-  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  // Static files served from ./public: landing page at / (index.html), the app at /app/, beta admin at /admin/.
+  // "/" and "/index.html" go through the Worker first so app.manifest0ai.com/ can serve the app page.
+  // Videos too: static assets ignore Range requests, which iPhone Safari needs to play video (src/index.ts, ranged).
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/", "/index.html", "/img/*.mp4"] },
 
   // D1 = Cloudflare's SQL database (SQLite). Tables: see migrations/
   "d1_databases": [
@@ -39,7 +45,8 @@
     // Sender address on our domain, verified in Resend.
     "EMAIL_FROM": "Manifest0 AI <reports@manifest0ai.com>"
   }
-  // Secrets (not in this file): MODEL_API_KEY, RESEND_API_KEY.
+  // Secrets (not in this file): MODEL_API_KEY, RESEND_API_KEY, BETTER_AUTH_SECRET (signs sessions),
+  // ADMIN_EMAILS (comma-separated; they sign in as admins and open /admin/). See src/auth.ts.
   // Locally in .dev.vars; in production in the dashboard (Settings → Variables and Secrets).
   // Without RESEND_API_KEY, emails aren't sent; the report is saved to R2 instead (see the log).
 }

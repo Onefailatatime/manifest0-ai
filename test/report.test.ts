@@ -2,7 +2,7 @@ import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 import { manifestCode } from "../src/manifest";
 import { reportPdf } from "../src/report-pdf";
-import { contentsText, defaultEmail, inventoryCsv, messageHtml } from "../src/visit-agent";
+import { contentsText, defaultEmail, emailHtml, inventoryCsv, messageHtml } from "../src/visit-agent";
 import { productRow, visitRow } from "./helpers";
 
 describe("EPA manifest container codes (Item 10)", () => {
@@ -72,8 +72,43 @@ describe("default email", () => {
     expect(defaultEmail(visitRow(), [productRow()]).message).toMatch(/Best regards,\nTamara\nAcme Environmental$/);
   });
 
-  it("falls back to the email when no name was given", () => {
+  it("falls back to the company, then the email, when no name was given", () => {
+    expect(defaultEmail(visitRow({ prepared_by: null }), []).message).toMatch(/Best regards,\nAcme Environmental$/);
     expect(defaultEmail(visitRow({ prepared_by: null, company: null }), []).message).toMatch(/Best regards,\ntech@example.com$/);
+  });
+
+  it("says 1 product, not 1 products", () => {
+    const e = defaultEmail(visitRow(), [productRow()]);
+    expect(e.subject).toBe("Chemical inventory – Riverside Clinic (1 product)");
+    expect(e.message).toContain("1 product in 1 room.");
+    expect(e.message).toContain("in Excel and the Safety Data Sheet.");
+  });
+
+  it("names the products without an SDS", () => {
+    const e = defaultEmail(visitRow(), [productRow(), productRow({ product_name: "Mystery Solvent", sds_key: null })]);
+    expect(e.message).toContain("Safety Data Sheets for 1 of 2 products.");
+    expect(e.message).toContain("We couldn't find one online for Mystery Solvent; the report marks it.");
+  });
+
+  it("mentions the PDF report and the spreadsheet", () => {
+    expect(defaultEmail(visitRow(), [productRow()]).message).toContain("the inventory report (PDF), a spreadsheet you can open in Excel");
+  });
+
+  it("frames the message with the site, the preparer and what's attached", () => {
+    const html = emailHtml(visitRow(), [productRow()], "Hi <Sam>", new Set(["sds/test.pdf"]), "https://manifest0ai.com");
+    expect(html).toContain("Chemical inventory – Riverside Clinic");
+    expect(html).toContain("Prepared by Tamara, Acme Environmental");
+    expect(html).toContain("<p>Hi &lt;Sam&gt;</p>");
+    expect(html).toContain("Safety Data Sheets (1 PDF)");
+    expect(html).not.toContain("Not attached");
+  });
+
+  it("links SDS too large to attach and lists the ones not found", () => {
+    const html = emailHtml(visitRow(), [productRow(), productRow({ product_name: "Mystery Solvent", sds_key: null, sds_url: null })],
+      "Hi", new Set(), "https://manifest0ai.com");
+    expect(html).toContain('href="https://manifest0ai.com/api/files/sds/test.pdf"');
+    expect(html).toContain("Mystery Solvent: no SDS found online");
+    expect(html).not.toContain("Safety Data Sheets (");
   });
 
   it("turns the message into safe HTML paragraphs", () => {
