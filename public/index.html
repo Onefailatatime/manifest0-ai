@@ -460,7 +460,12 @@ let me=store.get('m0-me')||'';
 
 async function api(path,opts){const r=await fetch(path,opts);const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.error||'Something went wrong ('+r.status+')');e.status=r.status;throw e}return j}
 async function load(){if(!visitId)return render();
- try{data=await api('/api/visits/'+visitId)}catch(e){toast(e.message);return}
+ try{data=await api('/api/visits/'+visitId)}
+ catch(e){render();   // redraw so a finished upload doesn't keep showing "Uploading"
+  clearTimeout(pollTimer);
+  if(e.status)toast(e.message);   // a real answer from the server
+  else pollTimer=setTimeout(load,5000);   // no signal: stay quiet (the upload's own message stays up) and try again
+  return}
  render();clearTimeout(pollTimer);if(busy())pollTimer=setTimeout(load,2500)}
 
 /* ---------- demo sign-in and account ---------- */
