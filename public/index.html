@@ -451,10 +451,14 @@ let visitId=new URLSearchParams(location.search).get('visit'), data=null, room=s
 let tray=[], uid=0, uploading=0, pollTimer=null, lastRows='';
 const isOpen=()=>!data||data.visit.status==='open';
 const sdsPending=()=>data?data.products.filter(p=>p.sds_status==='pending').length:0;
+/* "Uploading" only while the server isn't already reading labels, finding SDS sheets or sending: if it is, those are the
+   truth, and a counter still above zero (a reply lost on a bad signal) must not hide them. */
+const serverWorking=()=>!!data&&(data.photos.pending>0||sdsPending()>0||data.visit.status==='finishing');
+const isUploading=()=>uploading>0&&!serverWorking();
 const busy=()=>uploading>0||!!data&&(data.photos.pending>0||sdsPending()>0||data.visit.status==='finishing');
 let me=store.get('m0-me')||'';
 
-async function api(path,opts){const r=await fetch(path,opts);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong ('+r.status+')');return j}
+async function api(path,opts){const r=await fetch(path,opts);const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.error||'Something went wrong ('+r.status+')');e.status=r.status;throw e}return j}
 async function load(){if(!visitId)return render();
  try{data=await api('/api/visits/'+visitId)}catch(e){toast(e.message);return}
  render();clearTimeout(pollTimer);if(busy())pollTimer=setTimeout(load,2500)}
@@ -554,7 +558,7 @@ async function openVisit(id){
  closeSheet();if(id===visitId)return;
  clearTimeout(pollTimer);tray.forEach(t=>URL.revokeObjectURL(t.url));tray=[];renderTray();
  visitId=id;data=null;lastRows='';room='';history.replaceState(null,'','?visit='+id);
- await load();
+ await load();restoreTray();
  if(data){let saved=[];try{saved=JSON.parse(store.get(roomsKey())||'[]')}catch(e){}
   setRoom(saved.at(-1)||(data.rooms||[]).at(-1)||data.products.at(-1)?.room||'')}
  window.scrollTo({top:0})}
@@ -592,40 +596,86 @@ $('#snapBtn').onclick=()=>$('#photoCam').click();
 $('#photoCam').addEventListener('change',e=>{addPhotos(e.target.files);e.target.value=''});
 /* Limits per batch: 20 photos, each up to 20 MB as taken (they're shrunk to ~1 MB before upload). */
 const MAX_PHOTOS=20,MAX_MB=20;
+/* Fail-safe: every photo is saved on the phone (IndexedDB) the moment it is picked and only deleted once the server has
+   it. A bad signal, a reload or a killed tab can't lose it; it comes back in the tray. If storage is unavailable
+   (private mode) it falls back to memory only. */
+const pq={db:null,
+ open(){return this.db||(this.db=new Promise((res,rej)=>{const q=indexedDB.open('m0-photos',1);
+  q.onupgradeneeded=()=>q.result.createObjectStore('q',{keyPath:'id',autoIncrement:true});
+  q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}))},
+ async tx(mode,fn){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('q',mode),r=fn(t.objectStore('q'));
+  t.oncomplete=()=>res(r&&r.result);t.onerror=t.onabort=()=>rej(t.error)})}};
+const pqDel=keys=>{keys=keys.filter(Boolean);if(keys.length)pq.tx('readwrite',s=>keys.forEach(k=>s.delete(k))).catch(()=>{})};
+function keep(t){t.gone=false;   // save to the phone; if it was removed while saving, delete it again
+ pq.tx('readwrite',s=>s.add({visit:visitId,file:t.file,at:Date.now()})).then(k=>{t.db=k;if(t.gone)pqDel([k])}).catch(()=>{})}
+function drop(t){t.gone=true;URL.revokeObjectURL(t.url);pqDel([t.db])}
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+async function restoreTray(){   // photos saved earlier for this visit that never made it to the server
+ if(!visitId)return;
+ try{const rows=await pq.tx('readonly',s=>s.getAll()),old=Date.now()-7*864e5;
+  pqDel(rows.filter(r=>r.at<old).map(r=>r.id));
+  const mine=rows.filter(r=>r.visit===visitId&&r.at>=old&&!tray.some(t=>t.db===r.id)).slice(0,MAX_PHOTOS-tray.length);
+  if(!mine.length)return;
+  for(const r of mine)tray.push({id:++uid,file:r.file,url:URL.createObjectURL(r.file),db:r.id});
+  renderTray();toast(`${plural(mine.length,'photo')} saved on this phone, not read yet. Tap Read photos.`)}
+ catch(e){}}
 function addPhotos(list){let big=0,over=0;
  for(const f of list){if(!(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name)))continue;
   if(f.size>MAX_MB*1048576){big++;continue}
   if(tray.length>=MAX_PHOTOS){over++;continue}
-  tray.push({id:++uid,file:f,url:URL.createObjectURL(f)})}
+  const t={id:++uid,file:f,url:URL.createObjectURL(f)};tray.push(t);keep(t)}
  renderTray();
  if(over)toast(`Up to ${MAX_PHOTOS} photos at a time. Read these first, then add the rest.`);
  else if(big)toast(`${plural(big,'photo')} skipped: over ${MAX_MB} MB.`)}
 function renderTray(){$('#tray').hidden=!tray.length;
  $('#thumbs').innerHTML=tray.map(t=>`<div class="th"><img src="${t.url}" alt=""><button data-id="${t.id}" aria-label="Remove photo"><i class="ti ti-x"></i></button></div>`).join('');
  $("#readText").textContent=`Read ${plural(tray.length,"photo")}`}
-$('#clearTray').onclick=()=>{const old=tray;tray=[];renderTray();
- toast(plural(old.length,'photo')+' cleared','Undo',()=>{tray=old.concat(tray);renderTray()})};
+$('#clearTray').onclick=()=>{const old=tray;tray=[];renderTray();pqDel(old.map(t=>t.db));
+ toast(plural(old.length,'photo')+' cleared','Undo',()=>{old.forEach(t=>{t.db=null;keep(t)});tray=old.concat(tray);renderTray()})};
 $('#thumbs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const t=tray.find(x=>x.id===+b.dataset.id);
- tray=tray.filter(x=>x!==t);URL.revokeObjectURL(t.url);renderTray()});
+ tray=tray.filter(x=>x!==t);drop(t);renderTray()});
 
 /* Phone photos are 3-5 MB; shrink to 2000px JPEG before upload (labels stay readable). */
+/* If shrinking stalls (a phone short on memory, an odd HEIC), give up after 15 s and send the original, so the upload
+   can't freeze here before it even starts. Each decoded image is freed straight away so 20 photos don't pile up in memory. */
 async function shrink(file){
  if(file.size<1.5e6)return file;
- try{const bmp=await createImageBitmap(file),s=Math.min(1,2000/Math.max(bmp.width,bmp.height));
-  const c=document.createElement('canvas');c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);
-  c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
-  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.85));
-  return blob?new File([blob],file.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):file}
- catch(e){return file}}
+ const work=async()=>{let bmp,c;
+  try{bmp=await createImageBitmap(file);const s=Math.min(1,2000/Math.max(bmp.width,bmp.height));
+   c=document.createElement('canvas');c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);
+   c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+   const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.85));
+   return blob?new File([blob],file.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):file}
+  catch(e){return file}
+  finally{try{bmp&&bmp.close()}catch(e){}if(c){c.width=c.height=0}}};
+ return Promise.race([work(),new Promise(r=>setTimeout(()=>r(file),15000))])}
 
+/* One upload, with a 60 s timeout (a dead signal used to hang forever) and up to 3 retries with backoff for network
+   errors, timeouts and 5xx. A 4xx is a real answer, so it is not retried. */
+let upNow=null;
+/* A phone that locks, switches tabs or changes network freezes the request and the reply never comes back (this is
+   the likely cause of an upload that "never finished"). When the page is back or the network returns, drop the frozen
+   request and send it again; the server ignores it if the photos already arrived. */
+const resumeUpload=()=>{if(upNow&&!document.hidden){upNow.resumed=true;upNow.abort()}};
+document.addEventListener('visibilitychange',resumeUpload);addEventListener('online',resumeUpload);
+async function postPhotos(vid,fd){
+ for(let n=0;;n++){const ac=upNow=new AbortController(),to=setTimeout(()=>ac.abort(),60000);
+  try{return await api(`/api/visits/${vid}/photos`,{method:'POST',body:fd,signal:ac.signal})}
+  catch(e){const timedOut=e.name==='AbortError',retry=timedOut||!e.status||e.status>=500;
+   if(ac.resumed)n--;   // coming back to the page doesn't use up a retry
+   else if(!retry||n>=3)throw timedOut?new Error('The upload timed out'):(!e.status?new Error('No connection'):e)}
+  finally{clearTimeout(to);if(upNow===ac)upNow=null}
+  await new Promise(r=>setTimeout(r,ac.resumed?200:1500*2**n))}}
 $('#readBtn').onclick=async()=>{
- const batch=tray,r=room;tray=[];renderTray();uploading+=batch.length;render();
- try{for(let i=0;i<batch.length;i+=12){   // the server takes up to 12 photos per upload
-   const fd=new FormData();fd.append('room',r);
-   for(const t of batch.slice(i,i+12))fd.append('images',await shrink(t.file));
-   await api(`/api/visits/${visitId}/photos`,{method:'POST',body:fd})}
-  batch.forEach(t=>URL.revokeObjectURL(t.url))}
- catch(e){tray=batch.concat(tray);renderTray();toast(e.message)}
+ const batch=tray,r=room,vid=visitId;tray=[];renderTray();uploading+=batch.length;render();let sent=0;
+ try{for(let i=0;i<batch.length;i+=4){   // small uploads (about 4 MB) finish on a weak signal; the server takes up to 12
+   const part=batch.slice(i,i+4),fd=new FormData();fd.append('room',r);fd.append('batch',crypto.randomUUID());   // same id on every retry, so the server can spot a repeat
+   for(const t of part)fd.append('images',await shrink(t.file));
+   await postPhotos(vid,fd);
+   pqDel(part.map(t=>t.db));part.forEach(t=>URL.revokeObjectURL(t.url));sent=i+part.length}}   // only now is it safe to forget them
+ catch(e){const left=batch.slice(sent);   // keep only what did not go up, so a retry doesn't send photos twice
+  if(vid===visitId)tray=left.concat(tray);renderTray();
+  toast(`${e.message}. ${plural(left.length,'photo')} saved on this phone. Tap Read photos to retry.`)}
  uploading-=batch.length;await load()};
 
 /* ---------- product edits ---------- */
@@ -713,11 +763,11 @@ let job=null;
 function progress(reading,sds,sending){
  const now=Date.now();
  if(!job){let t0=now;   // started here (upload) = now; page reopened mid-job = when the current work began
-  if(!uploading){const last=(data?data.log:[]).filter(l=>/: reading \d+ photo|Finishing/.test(l)).map(l=>Date.parse(l.slice(0,24))).at(-1);if(last&&now-last<15*60000)t0=last}
+  if(!isUploading()){const last=(data?data.log:[]).filter(l=>/: reading \d+ photo|Finishing/.test(l)).map(l=>Date.parse(l.slice(0,24))).at(-1);if(last&&now-last<15*60000)t0=last}
   job={t0,pct:0,sdsMax:0}}
  const ease=(since,ms)=>1-Math.exp(-(now-since)/ms);
  let p;
- if(uploading)p=10*ease(job.t0,6000);
+ if(isUploading())p=10*ease(job.t0,6000);
  else if(reading){job.readT=job.readT||now;p=10+40*ease(job.readT,25000)}
  else if(sds){if(sds!==job.lastSds){job.lastSds=sds;job.sdsT=now}job.sdsMax=Math.max(job.sdsMax,sds);
   const per=45/job.sdsMax;p=50+per*(job.sdsMax-sds)+per*.8*ease(job.sdsT,25000)}
@@ -755,7 +805,7 @@ function render(){
 
  // status card: stage title, real progress (0-100%) and the steps the agent took since this job began
  const reading=data?data.photos.pending:0,sds=sdsPending(),sending=v&&v.status==='finishing';
- const st=uploading?'Uploading photos':reading?'Reading the labels':sds?'Finding SDS sheets':sending?'Sending the report':'';
+ const st=reading?'Reading the labels':sds?'Finding SDS sheets':sending?'Sending the report':uploading?'Uploading photos':'';
  const steps=()=>[...new Set((data?data.log:[]).filter(l=>Date.parse(l.slice(0,24))>=job.t0-1000).map(friendly).filter(Boolean))];
  if(st){const pct=progress(reading,sds,sending),list=steps().slice(-3);
   showStatus(st+(sds&&job.sdsMax>1?` · ${job.sdsMax-sds+1} of ${job.sdsMax}`:''),pct,list.map((t,i)=>[t,i<list.length-1]),false)}
@@ -891,7 +941,7 @@ function confirmDelete(p){
  $('#delYes').onclick=async()=>{closeSheet();if(await patch(p.id,{removed:true}))toast('Deleted '+p.product_name,'Undo',()=>patch(p.id,{removed:false},'Restored'))}}
 function refreshSheet(id){if(sheetFor!==id)return;const y=$('#sheet').scrollTop;detail(id);$('#sheet').scrollTop=y}
 
-load();
+load().then(restoreTray);
 })();
 </script>
 </body>
